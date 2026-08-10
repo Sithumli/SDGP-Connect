@@ -24,7 +24,8 @@ function useProjects(currentParams: ProjectQueryParams) {
       const requestId = ++requestIdRef.current;
 
       setIsLoading(true);
-      setError(null);
+      // The error is cleared only once a request succeeds, so a retry keeps the
+      // error UI (and anything the visitor is doing inside it) on screen.
 
       try {
         let apiUrl = "/api/projects";
@@ -85,10 +86,14 @@ function useProjects(currentParams: ProjectQueryParams) {
         if (requestId !== requestIdRef.current) return;
 
         if (!response.ok) {
-          const errorData = await response.text();
-          throw new Error(
-            `Error ${response.status}: ${errorData || response.statusText}`,
-          );
+          const body = await response.text();
+          let message = response.statusText;
+          try {
+            message = JSON.parse(body)?.error || message;
+          } catch {
+            // Non-JSON body (proxy/gateway error page) — keep the status text.
+          }
+          throw new Error(`Error ${response.status}: ${message}`);
         }
 
         const result = await response.json();
@@ -135,6 +140,7 @@ function useProjects(currentParams: ProjectQueryParams) {
         }
 
         setMeta(metaData);
+        setError(null);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
 

@@ -36,7 +36,7 @@ export const useGetAllBlogs = (options: UseGetAllBlogsOptions = {}): UseGetAllBl
       } else {
         setIsLoadingMore(true);
       }
-      setError(null);
+      // Cleared on success only, so a retry keeps the error UI mounted.
 
       const params = new URLSearchParams();
       params.append('page', page.toString());
@@ -69,6 +69,8 @@ export const useGetAllBlogs = (options: UseGetAllBlogsOptions = {}): UseGetAllBl
         } else {
           // Fallback for older API response format          setHasMore(response.data.data.length === (options.limit || 9));
         }
+
+        setError(null);
       } else {
         throw new Error(response.data.error || 'Failed to fetch posts');
       }

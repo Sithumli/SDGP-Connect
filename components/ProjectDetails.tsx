@@ -3,12 +3,9 @@
 // with an additional restriction: Non-commercial use only.
 // See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
 "use client";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ErrorState } from "@/components/ui/error-state";
 import { useGetProjectDetailsByID } from "@/hooks/project/useGetProjectDetailsByID";
 import { IProjectAssociation } from "@/types/project/type";
-import { ProjectDomainEnum } from "@prisma/client";
-import { AlertCircle } from "lucide-react";
 import { HeroSection } from "./s-project/hero-section";
 import { ProjectAssociation } from "./s-project/project-associations";
 import { ProjectHeader } from "./s-project/project-header";
@@ -18,9 +15,11 @@ import Teamandsocial from "./s-project/team-social";
 import { Spinner } from "./ui/spinner";
 
 const ProjectDetails = ({ projectID }: { projectID: string }) => {
-  const { project, isLoading, error } = useGetProjectDetailsByID(projectID);
+  const { project, isLoading, error, refetch } = useGetProjectDetailsByID(projectID);
 
-  if (isLoading) {
+  // While a retry is in flight we keep the error UI on screen rather than
+  // swapping back to a spinner, so a visitor mid-game isn't interrupted.
+  if (isLoading && !error) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Spinner variant="ring" className="size-24" />
@@ -30,23 +29,26 @@ const ProjectDetails = ({ projectID }: { projectID: string }) => {
 
   if (error) {
     return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error.message}</AlertDescription>
-      </Alert>
+      <div className="container mx-auto flex min-h-[70vh] items-center justify-center px-4 py-16">
+        <ErrorState
+          error={error}
+          description="We couldn't load this project right now. We'll keep trying in the background — feel free to play a round while you wait."
+          onRetry={refetch}
+          isRetrying={isLoading}
+        />
+      </div>
     );
   }
 
   if (!project) {
     return (
-      <Alert className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Project Not Found</AlertTitle>
-        <AlertDescription>
-          The requested project could not be found.
-        </AlertDescription>
-      </Alert>
+      <div className="container mx-auto flex min-h-[70vh] items-center justify-center px-4 py-16">
+        <ErrorState
+          title="Project not found"
+          description="This project doesn't exist or may have been removed."
+          showGame={false}
+        />
+      </div>
     );
   }
 

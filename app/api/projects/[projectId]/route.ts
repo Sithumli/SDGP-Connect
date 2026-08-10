@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiErrorResponse } from '@/lib/api-error';
 import { prisma } from '@/prisma/prismaClient';
 
 export async function GET(
@@ -62,13 +63,10 @@ export async function GET(
 
     return NextResponse.json(project);
   } catch (error) {
-    console.error('Error fetching project details:', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch project details',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
+    return apiErrorResponse(
+      'Error fetching project details',
+      error,
+      'Failed to load this project.'
     );
   }
 }

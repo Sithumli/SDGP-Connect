@@ -4,6 +4,7 @@
 // See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
 
 import { NextRequest, NextResponse } from "next/server";
+import { apiErrorResponse } from "@/lib/api-error";
 import { prisma } from "@/prisma/prismaClient";
 import { ProjectApprovalStatus } from "@prisma/client";
 
@@ -146,8 +147,6 @@ export const GET = async (req: NextRequest) => {
       }
     });
   } catch (err) {
-    console.error("Error fetching projects:", err);
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiErrorResponse("Error fetching projects", err, "Failed to load projects.");
   }
 };

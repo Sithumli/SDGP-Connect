@@ -28,16 +28,23 @@ export function useGetProjectDetailsByID(projectId: string): UseGetProjectDetail
     }
 
     setIsLoading(true);
-    setError(null);
+    // Kept until a request succeeds so retries don't tear down the error UI.
 
     try {
       const response = await axios.get<IProject>(`/api/projects/${projectId}`);
       setProject(response.data);
+      setError(null);
     } catch (err) {
-      const axiosError = err as AxiosError;
-      // Fix the error message extraction
-      const errorMessage = axiosError.message || 'Failed to fetch project details';
-      setError(new Error(errorMessage));
+      const axiosError = err as AxiosError<{ error?: string }>;
+      const errorMessage =
+        axiosError.response?.data?.error ||
+        axiosError.message ||
+        'Failed to fetch project details';
+      // Carry the status so the UI can tell a 404 from a backend outage.
+      const failure = Object.assign(new Error(errorMessage), {
+        status: axiosError.response?.status,
+      });
+      setError(failure);
       setProject(null);
     } finally {
       setIsLoading(false);

@@ -11,9 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { AlertCircle, FileX2, Inbox } from "lucide-react";
+import { FileX2, Inbox } from "lucide-react";
 import { useGetCompetitionsByApprovalStatus } from "@/hooks/competition/useGetCompetitionsByApprovalStatus";
 import PendingCompetitionsTableSkeleton from "@/components/tables/skeletons/PendingCompetitionsTableSkeleton";
 import PendingCompetitionsTable from "@/components/tables/PendingCompetitionsTable";
@@ -104,11 +104,13 @@ export default function CompetitionManagement() {
   const renderError = (error: ErrorType | null) => {
     if (!error) return null;
     return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error.message}</AlertDescription>
-      </Alert>
+      <ErrorState
+        compact
+        error={error}
+        title="Couldn't load competitions"
+        onRetry={handleRefresh}
+        className="mb-4"
+      />
     );
   };
 
