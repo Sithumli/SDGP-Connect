@@ -4,6 +4,13 @@
 // See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
 import type { NextConfig } from "next";
 
+// Public object URLs are served from https://<bucket>.s3.<region>.amazonaws.com/<key>
+const s3Bucket = process.env.AWS_S3_BUCKET_NAME;
+const s3Region = process.env.AWS_REGION;
+const s3Hostname = s3Bucket && s3Region
+  ? `${s3Bucket}.s3.${s3Region}.amazonaws.com`
+  : '**.amazonaws.com';
+
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -49,7 +56,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'sdgpblob.blob.core.windows.net',
+        hostname: s3Hostname,
       },
     ],
   },
