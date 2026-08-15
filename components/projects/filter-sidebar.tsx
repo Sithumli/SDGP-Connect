@@ -526,7 +526,7 @@ export default function FilterSidebar({
       sdgGoals: setSelectedSDGs,
       techStack: setSelectedTechStack,
     };
-    const setter = setterMap[filterType as Exclude<keyof FilterState, 'featured'>];
+    const setter = setterMap[filterType as Exclude<keyof FilterState, 'featured' | 'investment'>];
     if (setter) {
       setter(prev => prev.filter(f => f !== filterValue));
     }
