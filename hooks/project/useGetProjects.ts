@@ -41,6 +41,10 @@ function useProjects(currentParams: ProjectQueryParams) {
         if (currentParams.title)
           queryParams.append("title", currentParams.title);
 
+        if (currentParams.investment) {
+          queryParams.append("investment", "true");
+        }
+
         if (currentParams.projectTypes?.length) {
           currentParams.projectTypes.forEach((type) =>
             queryParams.append("projectTypes", type),
@@ -171,6 +175,7 @@ function useProjects(currentParams: ProjectQueryParams) {
   useEffect(() => {
     const filterKey = [
       currentParams.featured,
+      currentParams.investment,
       currentParams.title,
       currentParams.limit,
       currentParams.projectTypes?.join(","),
@@ -192,6 +197,7 @@ function useProjects(currentParams: ProjectQueryParams) {
     };
   }, [
     currentParams.featured,
+    currentParams.investment,
     currentParams.page,
     currentParams.title,
     currentParams.limit,
@@ -220,6 +226,7 @@ export interface ProjectQueryParams {
   title?: string;
   projectTypes?: string[];
   featured?: boolean;
+  investment?: boolean;
   domains?: string[];
   status?: string[];
   sdgGoals?: string[];
