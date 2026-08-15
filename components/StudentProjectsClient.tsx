@@ -148,7 +148,7 @@ export default function StudentProjectsClient() {
                                 <div className='flex items-center gap-3'>
                                     <Switch
                                         checked={p.lookingForInvestment ?? false}
-                                        disabled={updatingProjectId === p.projectId}
+                                        disabled={updatingProjectId !== null}
                                         onCheckedChange={(checked) =>
                                             handleInvestmentToggle(p.projectId, checked)
                                         }
