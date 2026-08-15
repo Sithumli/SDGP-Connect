@@ -99,7 +99,7 @@ export default function CompetitionPage({
         {/* Grid of Winner Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto">
           {awards.map((winner) => (
-            <AwardCard key={winner.id} winner={winner} />
+            <AwardCard key={winner.awardId} winner={winner} />
           ))}
         </div>
 

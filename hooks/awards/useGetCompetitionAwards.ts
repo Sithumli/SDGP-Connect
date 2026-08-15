@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 
 export interface CompetitionAward {
-  id: string; // award.id
+  awardId: string; 
+  id: string; 
   projectName: string; // projectmetadata.title
   team: string; // projectmetadata.group_number
   sdgpYear: string; // projectmetadata.sgp_year

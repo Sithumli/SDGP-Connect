@@ -54,7 +54,8 @@ export const GET = async (
 
     // Format response
     const result = awards.map((award) => ({
-      id: award.project?.project_id || "", // Use project.project_id for navigation
+      awardId: award.id, 
+      id: award.project?.project_id || "",
       projectName: award.project?.title || "",
       team: award.project?.group_num || "",
       sdgpYear: award.project?.sdgp_year || "",
