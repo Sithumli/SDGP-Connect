@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/prisma/prismaClient";
+import { ApprovalStatus } from "@prisma/client";
 
 export const GET = async (
   req: NextRequest,
@@ -44,9 +45,13 @@ export const GET = async (
       coverImage: competition.cover_image,
     };
 
-    // Fetch all awards for this competition, including project info
+    // Fetch approved awards for this competition, including project info.
+    // This is a public endpoint: pending and rejected awards must never be exposed.
     const awards = await prisma.award.findMany({
-      where: { competition_id: competitionId },
+      where: {
+        competition_id: competitionId,
+        approval_status: ApprovalStatus.APPROVED,
+      },
       include: {
         project: true
       }
@@ -54,7 +59,8 @@ export const GET = async (
 
     // Format response
     const result = awards.map((award) => ({
-      id: award.project?.project_id || "", // Use project.project_id for navigation
+      awardId: award.id, 
+      id: award.project?.project_id || "",
       projectName: award.project?.title || "",
       team: award.project?.group_num || "",
       sdgpYear: award.project?.sdgp_year || "",

@@ -29,7 +29,8 @@ export const GET = async (req: NextRequest) => {
     start_date: true,
     end_date: true,
     _count: {
-      select: { awards: true },
+      // Public winner count: approved awards only
+      select: { awards: { where: { approval_status: ApprovalStatus.APPROVED } } },
     },
   },
   orderBy: [

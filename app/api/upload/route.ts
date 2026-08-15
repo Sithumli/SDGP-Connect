@@ -4,12 +4,8 @@
 // See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { BlobServiceClient } from '@azure/storage-blob';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
-import * as os from 'os';
-import * as fs from 'fs';
 import { ADMIN_READ_ROLES, requireRole, STUDENT_ROLES } from '@/lib/auth/permissions';
 
 // ✅ Allow only these MIME types
@@ -45,42 +41,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "File type not allowed" }, { status: 400 });
     }
 
-    const tempFilePath = join(os.tmpdir(), `upload-${uuidv4()}`);
-    await writeFile(tempFilePath, buffer);
+    const bucket = process.env.AWS_S3_BUCKET_NAME;
+    const region = process.env.AWS_REGION;
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
-    const container = process.env.AZURE_STORAGE_CONTAINER_NAME;
-    const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-    const account = process.env.AZURE_STORAGE_ACCOUNT_NAME;
-    const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
-    const sas = process.env.AZURE_STORAGE_SAS_TOKEN;
-
-    if (!container || (!connectionString && (!account || (!accountKey && !sas)))) {
-      fs.unlinkSync(tempFilePath);
-      return NextResponse.json({ message: "Missing Azure config" }, { status: 500 });
+    if (!bucket || !region || !accessKeyId || !secretAccessKey) {
+      return NextResponse.json({ message: "Missing AWS config" }, { status: 500 });
     }
 
-    const blobServiceClient = connectionString
-      ? BlobServiceClient.fromConnectionString(connectionString)
-      : accountKey
-        ? BlobServiceClient.fromConnectionString(
-          `DefaultEndpointsProtocol=https;AccountName=${account};AccountKey=${accountKey};EndpointSuffix=core.windows.net`
-        )
-        : new BlobServiceClient(`https://${account}.blob.core.windows.net/?${sas}`);
-    const containerClient = blobServiceClient.getContainerClient(container);
-    const uniqueName = `${uuidv4()}`;
-    const blockBlobClient = containerClient.getBlockBlobClient(uniqueName);
-
-    await blockBlobClient.uploadFile(tempFilePath, {
-      blobHTTPHeaders: {
-        blobContentType: file.type,
-        blobContentDisposition: 'attachment',
-      },
+    const s3Client = new S3Client({
+      region,
+      credentials: { accessKeyId, secretAccessKey },
     });
+    const uniqueName = `${uuidv4()}`;
 
-    fs.unlinkSync(tempFilePath);
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: uniqueName,
+        Body: buffer,
+        ContentType: file.type,
+        ContentDisposition: 'attachment',
+      })
+    );
 
-    const publicAccount = account ?? BlobServiceClient.fromConnectionString(connectionString!).accountName;
-    const publicUrl = `https://${publicAccount}.blob.core.windows.net/${container}/${uniqueName}`;
+    const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${uniqueName}`;
     return NextResponse.json({ success: true, url: publicUrl });
 
   } catch (err) {
