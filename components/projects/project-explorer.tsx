@@ -8,6 +8,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { ProjectQueryParams } from "@/hooks/project/useGetProjects";
 import { EmptyState } from "../ui/empty-state";
+import { ErrorState } from "../ui/error-state";
 import { FileX2, ArrowUp } from "lucide-react";
 import { PaginatedResponse } from "@/types/project/pagination";
 import { ProjectCardType } from "@/types/project/card";
@@ -76,8 +77,13 @@ export default function ProjectExplorer({
 
   if (error) {
     return (
-      <div className="text-center py-10 text-red-500">
-        Error loading projects: {error}
+      <div className="flex items-center justify-center py-6">
+        <ErrorState
+          error={error}
+          description="We couldn't load the projects right now. Nothing is lost, we'll keep trying, and you can play a round while you wait."
+          onRetry={onReset}
+          isRetrying={isLoading}
+        />
       </div>
     );
   }

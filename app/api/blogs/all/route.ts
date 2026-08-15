@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/prisma/prismaClient";
 import { ProjectDomainEnum } from "@prisma/client";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   try {
@@ -118,10 +119,8 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error("Error fetching blog posts:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch blog posts" },
-      { status: 500 }
-    );
+    return apiErrorResponse("Error fetching blog posts", error, "Failed to load blog posts.", {
+      extra: { success: false },
+    });
   }
 }

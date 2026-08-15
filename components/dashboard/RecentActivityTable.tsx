@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '../ui/loading-spinner';
+import { ErrorState } from '../ui/error-state';
 import { Activity } from '@/hooks/dashboard/useGetActivity';
 
 interface RecentActivityTableProps {
@@ -80,9 +81,12 @@ const RecentActivityTable: React.FC<RecentActivityTableProps> = ({ activities, i
             <LoadingSpinner />
           </div>
         ) : error ? (
-          <div className="text-center py-10 text-red-500">
-            {error}
-          </div>
+          <ErrorState
+            compact
+            error={error}
+            title="Couldn't load recent activity"
+            description="Something went wrong on our end. Please try again in a moment."
+          />
         ) : activities.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground">
             No recent activity found.

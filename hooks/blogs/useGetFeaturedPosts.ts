@@ -26,7 +26,7 @@ export const useGetFeaturedPosts = (options: UseGetFeaturedPostsOptions = {}): U
   const fetchFeaturedPosts = async () => {
     try {
       setIsLoading(true);
-      setError(null);
+      // Cleared on success only, so a retry keeps the error UI mounted.
 
       const params = new URLSearchParams();
       if (options.limit) {
@@ -37,6 +37,7 @@ export const useGetFeaturedPosts = (options: UseGetFeaturedPostsOptions = {}): U
       
       if (response.data.success) {
         setFeaturedPosts(response.data.data || []);
+        setError(null);
       } else {
         throw new Error(response.data.error || 'Failed to fetch featured posts');
       }

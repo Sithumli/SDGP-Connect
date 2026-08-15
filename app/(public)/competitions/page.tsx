@@ -7,6 +7,7 @@
 import CompetitionCard from "@/components/competition/CompetitionCard"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { ErrorState } from "@/components/ui/error-state"
 import { useApprovedCompetitions } from "@/hooks/competition/useApprovedCompetitions"
 import { ArrowRight, Award, Pen, Play, Target } from "lucide-react"
 import Image from "next/image"
@@ -19,7 +20,7 @@ export default function AwardsPage() {
   const router = useRouter()
 
   // Infinite scroll logic
-  const { competitions, isLoading, error, fetchMore, hasMore } = useApprovedCompetitions(9)
+  const { competitions, isLoading, error, fetchMore, hasMore, retry } = useApprovedCompetitions(9)
   const loaderRef = useRef<HTMLDivElement | null>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
 
@@ -168,6 +169,16 @@ export default function AwardsPage() {
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">All Competitions</h2>
           <p className="text-base text-gray-400">Explore our competitive events and their winners</p>
         </div>
+        {/* Nothing loaded at all — show the friendly error instead of an empty grid */}
+        {error && competitions.length === 0 ? (
+          <ErrorState
+            error={error}
+            description="We couldn't load the competitions right now. We'll keep trying in the background — play a round while you wait."
+            onRetry={retry}
+            isRetrying={isLoading}
+          />
+        ) : (
+        <>
         {/* Responsive Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 lg:gap-8">
           {isLoading && competitions.length === 0
@@ -199,10 +210,22 @@ export default function AwardsPage() {
             ))}
         </div>
         <div ref={loaderRef} className="flex justify-center py-8">
-          {isLoading && <span className="text-gray-400">Loading...</span>}
+          {isLoading && !error && <span className="text-gray-400">Loading...</span>}
           {!hasMore && !isLoading && <span className="text-gray-500"></span>}
-          {error && <span className="text-red-500">{error}</span>}
+          {error && (
+            <ErrorState
+              compact
+              error={error}
+              title="We couldn't load more competitions"
+              description="Something went wrong on our end."
+              onRetry={retry}
+              isRetrying={isLoading}
+              className="max-w-xl"
+            />
+          )}
         </div>
+        </>
+        )}
       </div>
 
       {/* CTA section */}

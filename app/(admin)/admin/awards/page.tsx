@@ -15,8 +15,8 @@ import ApprovedAwardsTableSkeleton from '@/components/tables/skeletons/ApprovedA
 import RejectedAwardsTableSkeleton from '@/components/tables/skeletons/RejectedAwardsTableSkeleton';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, AlertCircle, FileX2, Inbox } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { RefreshCcw, FileX2, Inbox } from 'lucide-react';
+import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useGetAwardsByApprovalStatus } from '@/hooks/awards/useGetAwardsByApprovalStatus';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -54,11 +54,13 @@ export default function AdminAwardsPage() {
   const renderError = (error: any) => {
     if (!error) return null;
     return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error.message || error.toString()}</AlertDescription>
-      </Alert>
+      <ErrorState
+        compact
+        error={error}
+        title="Couldn't load awards"
+        onRetry={handleRefresh}
+        className="mb-4"
+      />
     );
   };
 

@@ -22,7 +22,7 @@ export const useApprovedCompetitions = (initialLimit = 9) => {
 
   const fetchCompetitions = useCallback(async (cursor?: string) => {
     setIsLoading(true);
-    setError(null);
+    // Cleared on success only, so a retry keeps the error UI mounted.
     try {
       const params: any = { limit: initialLimit };
       if (cursor) params.cursor = cursor;
@@ -38,7 +38,9 @@ export const useApprovedCompetitions = (initialLimit = 9) => {
       
       setNextCursor(newCursor);
       setHasMore(!!newCursor);
+      setError(null);
     } catch (err) {
+      console.error("Error fetching approved competitions:", err);
       setError("Failed to load competitions");
     } finally {
       setIsLoading(false);
@@ -59,5 +61,10 @@ export const useApprovedCompetitions = (initialLimit = 9) => {
     }
   };
 
-  return { competitions, isLoading, error, fetchMore, hasMore };
+  /** Re-runs the failed request: the next page if we have a cursor, else the first. */
+  const retry = useCallback(() => {
+    fetchCompetitions(nextCursor ?? undefined);
+  }, [fetchCompetitions, nextCursor]);
+
+  return { competitions, isLoading, error, fetchMore, hasMore, retry };
 };

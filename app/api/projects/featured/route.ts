@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/prisma/prismaClient";
 import { ProjectApprovalStatus } from "@/types/prisma-types";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export async function GET() {
   try {
@@ -46,10 +47,10 @@ export async function GET() {
 
     return NextResponse.json(formattedProjects);
   } catch (error) {
-    console.error("Error fetching featured projects:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch featured projects" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Error fetching featured projects",
+      error,
+      "Failed to load featured projects."
     );
   }
 }

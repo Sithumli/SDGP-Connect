@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/prisma/prismaClient";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,10 +63,11 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error("Error fetching featured blog posts:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch featured blog posts" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Error fetching featured blog posts",
+      error,
+      "Failed to load featured posts.",
+      { extra: { success: false } }
     );
   }
 }

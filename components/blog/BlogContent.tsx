@@ -14,6 +14,7 @@ import { FeaturedBlogCard } from "@/components/blog/FeaturedBlogCard";
 import { FeaturedBlogCardSkeleton } from "@/components/blog/FeaturedBlogCardSkeleton";
 import { BlogCardSkeleton } from "@/components/blog/BlogCardSkeleton";
 import Link from "next/link";
+import { ErrorState } from "@/components/ui/error-state";
 import { useGetAllBlogs } from "@/hooks/blogs/useGetAllBlogs";
 import { useGetFeaturedPosts } from "@/hooks/blogs/useGetFeaturedPosts";
 import { formatCategoryForApi } from "@/lib/blog-utils";
@@ -42,11 +43,16 @@ export function BlogContent({ initialPosts = [], featuredPosts: initialFeaturedP
   const formattedCategory = useMemo(() => formatCategoryForApi(activeCategory), [activeCategory]);
   
   // Use separate hooks for featured and all posts
-  const { featuredPosts, isLoading: isFeaturedLoading, error: featuredError } = useGetFeaturedPosts({
+  const {
+    featuredPosts,
+    isLoading: isFeaturedLoading,
+    error: featuredError,
+    refetch: refetchFeatured,
+  } = useGetFeaturedPosts({
     limit: 2
   });
-  
-  const { posts: allPosts, isLoading, isLoadingMore, error, hasMore, loadMore } = useGetAllBlogs({
+
+  const { posts: allPosts, isLoading, isLoadingMore, error, hasMore, loadMore, refetch } = useGetAllBlogs({
     category: formattedCategory,
     search: searchQuery || undefined,
     limit: 9,
@@ -72,17 +78,16 @@ export function BlogContent({ initialPosts = [], featuredPosts: initialFeaturedP
   const regularPosts = filteredPosts;
   if (error || featuredError) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Error Loading Posts</h2>
-          <p className="text-muted-foreground mb-4">{error || featuredError}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center px-4 py-16">
+        <ErrorState
+          error={error || featuredError}
+          description="We couldn't load the blog right now. We'll keep trying in the background — play a round while you wait."
+          onRetry={() => {
+            refetch();
+            refetchFeatured();
+          }}
+          isRetrying={isLoading || isFeaturedLoading}
+        />
       </div>
     );
   }

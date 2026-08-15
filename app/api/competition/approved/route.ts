@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/prisma/prismaClient";
 import { ApprovalStatus } from "@prisma/client";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const GET = async (req: NextRequest) => {
   try {
@@ -62,10 +63,10 @@ export const GET = async (req: NextRequest) => {
 
     return NextResponse.json({ competitions: result, nextCursor });
   } catch (error) {
-    console.error("Error fetching approved competitions:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch approved competitions" },
-      { status: 500 }
+    return apiErrorResponse(
+      "Error fetching approved competitions",
+      error,
+      "Failed to load competitions."
     );
   }
 };

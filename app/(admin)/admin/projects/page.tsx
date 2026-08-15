@@ -22,9 +22,9 @@ import { ApprovedProject, PendingProject, RejectedProject } from '@/types/projec
 import { ProjectApprovalStatus } from '@/types/prisma-types';
 import { useEffect, useState, useCallback } from 'react';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
-import { AlertCircle, FileX2, Inbox, RefreshCcw } from 'lucide-react';
+import { FileX2, Inbox, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BulkApproveDialog from '@/components/dialogs/BulkApproveDialog';
 import DuplicatePendingProjectsDialog from '@/components/dialogs/DuplicatePendingProjectsDialog';
@@ -212,11 +212,13 @@ export default function ProjectManagement() {
   const renderError = (error: Error | null) => {
     if (!error) return null;
     return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error.message}</AlertDescription>
-      </Alert>
+      <ErrorState
+        compact
+        error={error}
+        title="Couldn't load projects"
+        onRetry={handleRefresh}
+        className="mb-4"
+      />
     );
   };
 
