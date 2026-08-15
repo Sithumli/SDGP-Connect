@@ -3,6 +3,7 @@ import axios from "axios";
 
 export interface CompetitionAward {
   awardId: string; 
+  
   id: string; 
   projectName: string; // projectmetadata.title
   team: string; // projectmetadata.group_number

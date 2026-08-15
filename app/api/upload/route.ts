@@ -8,14 +8,17 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { ADMIN_READ_ROLES, requireRole, STUDENT_ROLES } from '@/lib/auth/permissions';
 
-// ✅ Allow only these MIME types
-const ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "application/pdf"
-];
+// ✅ Allow only these MIME types, and the object key extension each one gets.
+// Every existing object in the bucket carries an extension, so new uploads match.
+const EXTENSION_BY_MIME: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "application/pdf": "pdf",
+};
+
+const ALLOWED_MIME_TYPES = Object.keys(EXTENSION_BY_MIME);
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
       region,
       credentials: { accessKeyId, secretAccessKey },
     });
-    const uniqueName = `${uuidv4()}`;
+    const uniqueName = `${uuidv4()}.${EXTENSION_BY_MIME[file.type]}`;
 
     await s3Client.send(
       new PutObjectCommand({
