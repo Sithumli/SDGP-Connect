@@ -14,9 +14,9 @@ import Image from "next/image"
 import Link from "next/link"
 
 const loginImages = [
-  "/home/hero/dialog-ino.png",
+  "/home/hero/dialog-ino.webp",
   "/home/hero/movemate1.webp",
-  "/home/hero/3.jpg",
+  "/home/hero/3.webp",
 ]
 
 const AuthForm: React.FC = () => {
