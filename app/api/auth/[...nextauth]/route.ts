@@ -60,6 +60,13 @@ const getRequiredEnv = (key: string) => {
   return value;
 };
 
+const ALLOWED_EMAIL_DOMAINS = ["@iit.ac.lk"];
+
+const isAllowedEmailDomain = (email: string): boolean => {
+  const normalizedEmail = email.toLowerCase();
+  return ALLOWED_EMAIL_DOMAINS.some((domain) => normalizedEmail.endsWith(domain));
+};
+
 const asgardeoIssuer = getRequiredEnv("ASGARDEO_ISSUER_URL").replace(/\/+$/, "");
 
 export const authOptions: AuthOptions = {
@@ -145,6 +152,19 @@ export const authOptions: AuthOptions = {
   ],
 
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "asgardeo") {
+        const email =
+          ((profile as Record<string, unknown>)?.email as string | undefined) ?? user.email ?? "";
+
+        if (!email || !isAllowedEmailDomain(email)) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+
     async jwt({ token, user, account, profile }) {
       if (account && user) {
         const email = token.email ?? user.email;

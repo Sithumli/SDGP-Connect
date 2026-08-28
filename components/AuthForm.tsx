@@ -94,6 +94,9 @@ const BackButton: React.FC = () => (
 )
 
 const getAuthErrorMessage = (error: string | null) => {
+  if (error === "AccessDenied") {
+    return "Only IIT (@iit.ac.lk) email accounts can sign in here."
+  }
   if (!error || error === "undefined") {
     return "Sign-in failed. Please check the Asgardeo configuration and try again."
   }
@@ -134,10 +137,7 @@ const LoginForm: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400"
         >
-          <p className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-red-400 shrink-0" />
-            {error}
-          </p>
+          <p>{error}</p>
         </motion.div>
       )}
 
