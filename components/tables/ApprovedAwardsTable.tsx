@@ -65,7 +65,8 @@ export default function ApprovedAwardsTable({ awards, currentPage, totalPages, o
             <TableHead>Approved By</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
-        </TableHeader>        <TableBody>
+        </TableHeader>
+        <TableBody>
           {awards.map((award: AdminAward) => (
             <TableRow key={award.id}>
               <TableCell className="font-medium">{award.name}</TableCell>

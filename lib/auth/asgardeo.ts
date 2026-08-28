@@ -26,9 +26,21 @@ export const getAsgardeoBaseUrl = () =>
     .replace(/\/+$/, "")
     .replace(/\/oauth2\/token$/, "");
 
-export const getAppNativeRedirectUri = () =>
-  getOptionalEnv("ASGARDEO_APP_NATIVE_REDIRECT_URI") ??
-  `${getRequiredEnv("NEXTAUTH_URL").replace(/\/+$/, "")}/api/auth/app-native/google/callback`;
+export const APP_NATIVE_CALLBACK_PATH = "/api/auth/app-native/google/callback";
+
+/**
+ * The redirect_uri for a given origin. Asgardeo requires the value sent to /oauth2/authorize to be
+ * registered AND to be repeated verbatim at the token exchange, so it is threaded through the flow
+ * rather than recomputed.
+ */
+export const getAppNativeRedirectUri = (origin?: string) => {
+  if (origin) return `${origin.replace(/\/+$/, "")}${APP_NATIVE_CALLBACK_PATH}`;
+
+  const configured = getOptionalEnv("ASGARDEO_APP_NATIVE_REDIRECT_URI");
+  if (configured) return configured;
+
+  return `${getRequiredEnv("NEXTAUTH_URL").replace(/\/+$/, "")}${APP_NATIVE_CALLBACK_PATH}`;
+};
 
 export const getAsgardeoClientId = () => getRequiredEnv("ASGARDEO_CLIENT_ID");
 const getAsgardeoClientSecret = () => getRequiredEnv("ASGARDEO_CLIENT_SECRET");
@@ -108,11 +120,15 @@ export const createState = () => base64UrlEncode(crypto.randomBytes(16));
  * Starts an app-native flow. `response_mode=direct` makes Asgardeo answer with the JSON flow
  * descriptor instead of redirecting the browser to its hosted login page.
  */
-export const startAuthFlow = async (codeChallenge: string, state: string): Promise<FlowResponse> => {
+export const startAuthFlow = async (
+  codeChallenge: string,
+  state: string,
+  redirectUri: string,
+): Promise<FlowResponse> => {
   const body = new URLSearchParams({
     client_id: getAsgardeoClientId(),
     response_type: "code",
-    redirect_uri: getAppNativeRedirectUri(),
+    redirect_uri: redirectUri,
     scope: "openid email profile",
     state,
     response_mode: "direct",
@@ -207,12 +223,12 @@ export const getFlowErrorMessage = (flow: FlowResponse) => {
 };
 
 /** Describes why a response carries no usable flow, so logs name the real cause. */
-export const describeFlowFailure = (flow: FlowResponse) => {
+export const describeFlowFailure = (flow: FlowResponse, redirectUri?: string) => {
   if (flow.code || flow.description) {
     // A callback mismatch is always about the redirect_uri, and the value is derived from
     // NEXTAUTH_URL at runtime — so print it rather than making someone reconstruct it.
     const callbackHint = /callback/i.test(`${flow.description ?? ""}${flow.code ?? ""}`)
-      ? ` | redirect_uri sent: "${getAppNativeRedirectUri()}" — register this exact string as an` +
+      ? ` | redirect_uri sent: "${redirectUri ?? "unknown"}" — register this exact string as an` +
         " Authorized redirect URL on the Asgardeo application (and on the Google OAuth client)."
       : "";
 
@@ -235,11 +251,12 @@ export const describeFlowFailure = (flow: FlowResponse) => {
 export const exchangeCodeForTokens = async (
   code: string,
   codeVerifier: string,
+  redirectUri: string,
 ): Promise<AsgardeoTokens> => {
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code,
-    redirect_uri: getAppNativeRedirectUri(),
+    redirect_uri: redirectUri,
     client_id: getAsgardeoClientId(),
     client_secret: getAsgardeoClientSecret(),
     code_verifier: codeVerifier,
@@ -301,6 +318,8 @@ export const resolveClaims = async (tokens: AsgardeoTokens): Promise<AsgardeoCla
 export interface FlowTokenPayload {
   codeVerifier: string;
   state: string;
+  /** Must be the exact value sent to /oauth2/authorize, or the token exchange is rejected. */
+  redirectUri: string;
   expiresAt: number;
 }
 
@@ -310,6 +329,7 @@ export interface GoogleFlowState {
   authenticatorId: string;
   codeVerifier: string;
   state: string;
+  redirectUri: string;
   callbackUrl: string;
   expiresAt: number;
 }
@@ -357,7 +377,7 @@ export const verifySignedBlob = <T extends { expiresAt: number }>(blob: string):
 };
 
 /** Carries the PKCE verifier back to the credentials provider without exposing it to page JS. */
-export const createFlowToken = (codeVerifier: string, state: string) =>
-  createSignedBlob({ codeVerifier, state });
+export const createFlowToken = (codeVerifier: string, state: string, redirectUri: string) =>
+  createSignedBlob({ codeVerifier, state, redirectUri });
 
 export const verifyFlowToken = (flowToken: string) => verifySignedBlob<FlowTokenPayload>(flowToken);

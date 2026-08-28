@@ -39,6 +39,11 @@ const nextConfig: NextConfig = {
         hostname: 'picsum.photos',
       },
       {
+        // Profile pictures imported from Google sign-in.
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
