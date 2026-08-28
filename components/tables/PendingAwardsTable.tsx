@@ -69,7 +69,8 @@ export default function PendingAwardsTable({ awards, currentPage, totalPages, on
             <TableHead>Competition</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
-        </TableHeader>        <TableBody>
+        </TableHeader>
+        <TableBody>
           {awards.map((award: AdminAward) => (
             <TableRow key={award.id}>
               <TableCell className="font-medium">{award.name}</TableCell>

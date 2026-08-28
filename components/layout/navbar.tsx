@@ -4,7 +4,8 @@
 // See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
 'use client';
 
-import { Menu, Bell, Sun, Moon } from 'lucide-react';
+import { Menu, Sun, Moon } from 'lucide-react';
+import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useSession, signOut } from 'next-auth/react';
 import {
@@ -28,6 +29,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const userName = session?.user?.name ?? 'User';
   const userRole = (session?.user as any)?.role as Role | undefined;
   const dashboardTitle = userRole === Role.STUDENT ? 'Student Dashboard' : 'Admin Dashboard';
+  const accountHref = userRole === Role.STUDENT ? '/dashboard/profile' : '/admin/profile';
   const initials = userName
     .split(' ')
     .map((n) => n[0])
@@ -48,7 +50,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
         <div className="ml-auto flex items-center space-x-4">
           {/* Theme toggle */}
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
                 <Sun className="h-6 w-6 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -62,20 +64,15 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Notifications */}
-          <Button variant="ghost" size="icon">
-            <Bell className="h-6 w-6" />
-          </Button>
-
           {/* User menu with name and logout */}
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 className="flex items-center space-x-2 rounded-full px-2 py-1"
               >
                 <Avatar>
-                <AvatarImage src="https://github.com/shadcn.png" />
+                <AvatarImage src={session?.user?.image ?? undefined} />
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium text-zinc-200">
@@ -84,8 +81,9 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={accountHref}>My Account</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() =>
                   signOut({
