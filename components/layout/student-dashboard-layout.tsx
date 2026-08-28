@@ -48,7 +48,7 @@ export function StudentDashboardLayout({ children }: { children: React.ReactNode
         <StudentSidebar isOpen={sidebarOpen} />
         <main
           className={cn(
-            'flex-1 overflow-y-auto p-6 transition-all min-h-screen duration-300 ease-in-out',
+            'flex-1 overflow-y-auto p-6 min-h-screen transition-[margin] duration-300 ease-in-out',
             sidebarOpen ? 'ml-64' : 'ml-20'
           )}
         >

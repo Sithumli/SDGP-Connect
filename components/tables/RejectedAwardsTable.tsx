@@ -78,7 +78,8 @@ export default function RejectedAwardsTable({ awards, currentPage, totalPages, o
             <TableHead>Reject Reason</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
-        </TableHeader>        <TableBody>
+        </TableHeader>
+        <TableBody>
           {awards.map((award: AdminAward) => (
             <TableRow key={award.id}>
               <TableCell className="font-medium">{award.name}</TableCell>

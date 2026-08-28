@@ -7,11 +7,13 @@
 import * as React from "react"
 import { ChevronLeft } from "lucide-react"
 import { motion } from "framer-motion"
-import { signIn, signOut } from "next-auth/react"
-import { useSearchParams } from "next/navigation"
+import { signIn } from "next-auth/react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import Image from "next/image"
 import Link from "next/link"
+
+const ALLOWED_EMAIL_DOMAIN = process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN ?? "iit.ac.lk"
 
 const loginImages = [
   "/home/hero/dialog-ino.webp",
@@ -45,15 +47,6 @@ const AuthForm: React.FC = () => {
 
             {/* Heading + form */}
             <div className="flex flex-col gap-8">
-              <div>
-                <h1 className="text-4xl font-bold text-white tracking-tight leading-tight">
-                  Welcome<br />
-                  <span className="text-zinc-500">back.</span>
-                </h1>
-                <p className="mt-3 text-sm text-zinc-400">
-                  Sign in to your account to continue
-                </p>
-              </div>
               <LoginForm />
             </div>
 
@@ -94,8 +87,14 @@ const BackButton: React.FC = () => (
 )
 
 const getAuthErrorMessage = (error: string | null) => {
-  if (error === "AccessDenied") {
-    return "Only IIT (@iit.ac.lk) email accounts can sign in here."
+  if (error === "AccessDenied" || error === "DomainNotAllowed") {
+    return `Only @${ALLOWED_EMAIL_DOMAIN} email accounts can sign in here.`
+  }
+  if (error === "SessionExpired") {
+    return "Your sign-in session expired. Please try again."
+  }
+  if (error === "GoogleSignInFailed") {
+    return "Google sign-in failed. Please try again."
   }
   if (!error || error === "undefined") {
     return "Sign-in failed. Please check the Asgardeo configuration and try again."
@@ -103,10 +102,38 @@ const getAuthErrorMessage = (error: string | null) => {
   return `Sign-in failed (${error}). Please try again.`
 }
 
+const ALLOWED_EMAIL_EXCEPTIONS = (process.env.NEXT_PUBLIC_ALLOWED_EMAIL_EXCEPTIONS ?? "")
+  .split(",")
+  .map(entry => entry.trim().toLowerCase())
+  .filter(Boolean)
+
+const isAllowedEmail = (email: string) => {
+  const normalized = email.trim().toLowerCase()
+  return normalized.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`) || ALLOWED_EMAIL_EXCEPTIONS.includes(normalized)
+}
+
+const inputClassName =
+  "w-full rounded-xl border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-sm text-zinc-100 " +
+  "placeholder:text-zinc-600 transition-colors duration-200 focus:border-zinc-500 " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
+
+type AuthMode = "signin" | "signup" | "reset"
+type ResetStage = "request" | "verify" | "password"
+
 const LoginForm: React.FC = () => {
+  const router = useRouter()
   const searchParams = useSearchParams()
+  const [mode, setMode] = React.useState<AuthMode>("signin")
+  const [resetStage, setResetStage] = React.useState<ResetStage>("request")
+  const [name, setName] = React.useState("")
+  const [email, setEmail] = React.useState("")
+  const [password, setPassword] = React.useState("")
+  const [confirmPassword, setConfirmPassword] = React.useState("")
+  const [otp, setOtp] = React.useState("")
   const [error, setError] = React.useState("")
+  const [notice, setNotice] = React.useState("")
   const [loading, setLoading] = React.useState(false)
+  const [googleLoading, setGoogleLoading] = React.useState(false)
   const callbackUrlFromQuery = searchParams.get("callbackUrl")
   const dashboardCallbackUrl = callbackUrlFromQuery ?? "/dashboard"
   const authError = searchParams.get("error")
@@ -118,19 +145,187 @@ const LoginForm: React.FC = () => {
     }
   }, [authError])
 
-  const handleSignIn = async () => {
-    setLoading(true)
-    try {
-      await signOut({ redirect: false })
-      await signIn("asgardeo", { callbackUrl: dashboardCallbackUrl })
-    } catch {
+  const switchMode = (next: AuthMode) => {
+    setMode(next)
+    setResetStage("request")
+    setError("")
+    setNotice("")
+    setPassword("")
+    setConfirmPassword("")
+    setOtp("")
+  }
+
+  const post = async (url: string, body: unknown) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    return { response, data: await response.json() }
+  }
+
+  const redeemTicket = async (ticket: string) => {
+    const result = await signIn("asgardeo", { ticket, redirect: false })
+
+    if (result?.error) {
+      setError(getAuthErrorMessage(result.error))
       setLoading(false)
-      setError("Something went wrong. Please try again.")
+      return
+    }
+
+    router.push(dashboardCallbackUrl)
+    router.refresh()
+  }
+
+  const handleReset = async () => {
+    if (resetStage === "request") {
+      const { response, data } = await post("/api/auth/app-native/password-reset/request", { email })
+
+      if (!response.ok) {
+        setError(data.error ?? "Could not start the reset. Please try again.")
+      } else {
+        // Always advance, even when no account matched, so this cannot reveal who is registered.
+        setNotice(data.message ?? "If an account exists for that email, a code is on its way.")
+        setResetStage("verify")
+      }
+      return
+    }
+
+    if (resetStage === "verify") {
+      const { response, data } = await post("/api/auth/app-native/password-reset/verify", { otp })
+
+      if (!response.ok) {
+        setError(data.error ?? "That code is incorrect. Please try again.")
+      } else {
+        setNotice("Code verified. Choose a new password.")
+        setResetStage("password")
+      }
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError("Both passwords must match.")
+      return
+    }
+
+    const { response, data } = await post("/api/auth/app-native/password-reset/confirm", { password })
+
+    if (!response.ok) {
+      setError(data.error ?? "Could not reset your password. Please try again.")
+    } else {
+      toast.success("Password reset. You can sign in now.")
+      switchMode("signin")
     }
   }
 
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setError("")
+    setNotice("")
+
+    // UX pre-check only — the same rule is enforced again on the server for every attempt.
+    const needsEmailCheck = mode !== "reset" || resetStage === "request"
+    if (needsEmailCheck && !isAllowedEmail(email)) {
+      setError(`Please use your IIT email address (@${ALLOWED_EMAIL_DOMAIN}).`)
+      return
+    }
+
+    if (mode === "signup" && password !== confirmPassword) {
+      setError("Both passwords must match.")
+      return
+    }
+
+    setLoading(true)
+    try {
+      if (mode === "reset") {
+        await handleReset()
+        setLoading(false)
+        return
+      }
+
+      const endpoint = mode === "signup" ? "/api/auth/app-native/signup" : "/api/auth/app-native/login"
+      const { response, data } = await post(
+        endpoint,
+        mode === "signup" ? { name, email, password } : { email, password },
+      )
+
+      if (!response.ok || !data.ticket) {
+        setError(data.error ?? "Sign-in failed. Please try again.")
+        setLoading(false)
+        return
+      }
+
+      await redeemTicket(data.ticket)
+    } catch {
+      setError("Something went wrong. Please try again.")
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError("")
+    setNotice("")
+    setGoogleLoading(true)
+    try {
+      const { response, data } = await post("/api/auth/app-native/google/start", {
+        callbackUrl: dashboardCallbackUrl,
+      })
+
+      if (!response.ok || !data.redirectUrl) {
+        setError(data.error ?? "Google sign-in is unavailable right now.")
+        setGoogleLoading(false)
+        return
+      }
+
+      window.location.href = data.redirectUrl
+    } catch {
+      setError("Something went wrong. Please try again.")
+      setGoogleLoading(false)
+    }
+  }
+
+  const busy = loading || googleLoading
+  const showEmail = mode !== "reset" || resetStage === "request"
+  const showPassword = mode === "signin" || mode === "signup" || (mode === "reset" && resetStage === "password")
+  const showConfirmPassword = mode === "signup" || (mode === "reset" && resetStage === "password")
+  const showGoogle = mode !== "reset"
+
+  const heading = {
+    signin: <>Welcome<br /><span className="text-zinc-500">back.</span></>,
+    signup: <>Create your<br /><span className="text-zinc-500">account.</span></>,
+    reset: <>Reset your<br /><span className="text-zinc-500">password.</span></>,
+  }[mode]
+
+  const subheading =
+    mode === "signup"
+      ? `Sign up with your @${ALLOWED_EMAIL_DOMAIN} email to get started`
+      : mode === "signin"
+        ? "Sign in to your account to continue"
+        : resetStage === "request"
+          ? "We'll email you a 6-digit code"
+          : resetStage === "verify"
+            ? "Enter the 6-digit code we emailed you"
+            : "Choose a new password"
+
+  const submitLabel = {
+    signin: "Sign in",
+    signup: "Create account",
+    reset: { request: "Email me a code", verify: "Verify code", password: "Reset password" }[resetStage],
+  }[mode]
+
+  const busyLabel = {
+    signin: "Signing in...",
+    signup: "Creating account...",
+    reset: { request: "Sending code...", verify: "Verifying...", password: "Resetting..." }[resetStage],
+  }[mode]
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-4xl font-bold text-white tracking-tight leading-tight">{heading}</h1>
+        <p className="mt-3 text-sm text-zinc-400">{subheading}</p>
+      </div>
+
       {error && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -141,36 +336,177 @@ const LoginForm: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Asgardeo sign-in button */}
-      <button
-        type="button"
-        onClick={handleSignIn}
-        disabled={loading}
-        className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-700
-          bg-zinc-800 px-5 py-3.5 text-sm font-medium text-zinc-200
-          transition-all duration-200 hover:bg-zinc-700 hover:border-zinc-600
-          active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
-      >
-        {loading ? (
+      {notice && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-400"
+        >
+          <p>{notice}</p>
+        </motion.div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {mode === "signup" && (
+          <input
+            type="text"
+            value={name}
+            onChange={event => setName(event.target.value)}
+            placeholder="Full name"
+            autoComplete="name"
+            required
+            minLength={2}
+            className={inputClassName}
+          />
+        )}
+
+        {showEmail && (
+          <input
+            type="email"
+            value={email}
+            onChange={event => setEmail(event.target.value)}
+            placeholder={`you@${ALLOWED_EMAIL_DOMAIN}`}
+            autoComplete="email"
+            required
+            className={inputClassName}
+          />
+        )}
+
+        {mode === "reset" && resetStage === "verify" && (
+          <input
+            type="text"
+            value={otp}
+            onChange={event => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="6-digit code"
+            inputMode="numeric"
+            pattern="\d{6}"
+            maxLength={6}
+            autoComplete="one-time-code"
+            required
+            className={`${inputClassName} text-center tracking-[0.5em] font-mono text-lg`}
+          />
+        )}
+
+        {showPassword && (
+          <input
+            type="password"
+            value={password}
+            onChange={event => setPassword(event.target.value)}
+            placeholder={mode === "signin" ? "Password" : "New password"}
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            required
+            minLength={mode === "signin" ? undefined : 8}
+            className={inputClassName}
+          />
+        )}
+
+        {showConfirmPassword && (
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={event => setConfirmPassword(event.target.value)}
+            placeholder="Confirm password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            className={inputClassName}
+          />
+        )}
+
+        {mode === "signin" && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => switchMode("reset")}
+              className="text-xs text-zinc-500 underline-offset-4 hover:text-zinc-300 hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={busy}
+          className="flex w-full items-center justify-center gap-3 rounded-xl bg-zinc-100 px-5 py-3.5
+            text-sm font-medium text-zinc-900
+            transition-all duration-200 hover:bg-white
+            active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
+        >
+          {loading ? (
+            <>
+              <span className="size-4 animate-spin rounded-full border-2 border-zinc-400 border-t-zinc-900 shrink-0" />
+              <span>{busyLabel}</span>
+            </>
+          ) : (
+            <span>{submitLabel}</span>
+          )}
+        </button>
+      </form>
+
+      {showGoogle && (
+        <>
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-zinc-800" />
+            <span className="text-xs text-zinc-600">or</span>
+            <span className="h-px flex-1 bg-zinc-800" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={busy}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-700
+              bg-zinc-800 px-5 py-3.5 text-sm font-medium text-zinc-200
+              transition-all duration-200 hover:bg-zinc-700 hover:border-zinc-600
+              active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
+          >
+            {googleLoading ? (
+              <>
+                <span className="size-4 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-200 shrink-0" />
+                <span>Redirecting to Google...</span>
+              </>
+            ) : (
+              <>
+                <svg width="18" height="18" viewBox="0 0 48 48" className="shrink-0" aria-hidden="true">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                  <path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.77 24c0-1.6.28-3.15.76-4.59l-7.98-6.19A23.94 23.94 0 0 0 0 24c0 3.88.93 7.54 2.56 10.78l7.97-6.19z" />
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.17 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                </svg>
+                <span>Continue with Google</span>
+              </>
+            )}
+          </button>
+        </>
+      )}
+
+      <p className="text-center text-sm text-zinc-500">
+        {mode === "reset" ? (
           <>
-            <span className="size-4 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-200 shrink-0" />
-            <span>Redirecting to Asgardeo...</span>
+            Remembered it?{" "}
+            <button
+              type="button"
+              onClick={() => switchMode("signin")}
+              className="font-medium text-zinc-200 underline-offset-4 hover:underline"
+            >
+              Back to sign in
+            </button>
           </>
         ) : (
           <>
-            {/* Asgardeo wordmark icon */}
-            <svg width="18" height="18" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-              <rect width="40" height="40" rx="8" fill="#FF7300"/>
-              <path d="M20 8L32 28H8L20 8Z" fill="white"/>
-            </svg>
-            <span>Continue with Asgardeo</span>
+            {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() => switchMode(mode === "signup" ? "signin" : "signup")}
+              className="font-medium text-zinc-200 underline-offset-4 hover:underline"
+            >
+              {mode === "signup" ? "Sign in" : "Sign up"}
+            </button>
           </>
         )}
-      </button>
-
-      <p className="text-center text-xs text-zinc-600">
-        Secure sign-in via WSO2 Asgardeo
       </p>
     </div>
   )
@@ -244,7 +580,7 @@ const RightPanel: React.FC = () => {
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5 backdrop-blur">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-2">Platform</p>
           <p className="text-sm text-zinc-400 leading-relaxed mb-4">
-            Manage your Software Development Group Project — track progress, collaborate, and ship faster.
+            Manage your Software Development Group Project. Track progress, collaborate, and ship faster.
           </p>
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs text-zinc-400">
