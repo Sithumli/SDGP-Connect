@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
     const completion = await completeAppNativeFlow(
       result.authData.code,
-      createFlowToken(flowState.codeVerifier, flowState.state),
+      createFlowToken(flowState.codeVerifier, flowState.state, flowState.redirectUri),
     );
 
     if (!completion.ok) {

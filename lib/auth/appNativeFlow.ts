@@ -49,7 +49,7 @@ export const completeAppNativeFlow = async (
 
   let claims;
   try {
-    const tokens = await exchangeCodeForTokens(code, flowState.codeVerifier);
+    const tokens = await exchangeCodeForTokens(code, flowState.codeVerifier, flowState.redirectUri);
     claims = await resolveClaims(tokens);
   } catch (error) {
     console.error("Asgardeo app-native token exchange failed:", error);

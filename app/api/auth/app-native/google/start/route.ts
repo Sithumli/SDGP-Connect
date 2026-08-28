@@ -12,12 +12,14 @@ import {
   createSignedBlob,
   createState,
   findGoogleAuthenticator,
+  getAppNativeRedirectUri,
   startAuthFlow,
   submitAuthStep,
 } from "@/lib/auth/asgardeo";
 import { APP_NATIVE_COOKIE_OPTIONS, GOOGLE_FLOW_COOKIE } from "@/lib/auth/appNativeCookies";
 import { ALLOWED_EMAIL_DOMAIN } from "@/lib/auth/emailDomain";
 import { apiErrorResponse } from "@/lib/api-error";
+import { resolveAppOrigin } from "@/lib/auth/appOrigin";
 import { FLOW_START_RATE_LIMIT_RULES, enforceRateLimit } from "@/lib/auth/authRateLimit";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
 
@@ -36,12 +38,13 @@ export async function POST(req: Request) {
 
     const { codeVerifier, codeChallenge } = createPkcePair();
     const state = createState();
+    const redirectUri = getAppNativeRedirectUri(resolveAppOrigin(req));
 
-    const flow = await startAuthFlow(codeChallenge, state);
+    const flow = await startAuthFlow(codeChallenge, state, redirectUri);
     const googleAuthenticator = findGoogleAuthenticator(flow);
 
     if (!flow.flowId || !googleAuthenticator) {
-      console.error(`Asgardeo app-native Google step unavailable: ${describeFlowFailure(flow)}`);
+      console.error(`Asgardeo app-native Google step unavailable: ${describeFlowFailure(flow, redirectUri)}`);
       return NextResponse.json({ error: "Google sign-in is unavailable right now." }, { status: 502 });
     }
 
@@ -55,7 +58,7 @@ export async function POST(req: Request) {
 
       if (!redirectUrl) {
         console.error(
-          `Asgardeo app-native Google step returned no redirectUrl: ${describeFlowFailure(selected)}`,
+          `Asgardeo app-native Google step returned no redirectUrl: ${describeFlowFailure(selected, redirectUri)}`,
         );
         return NextResponse.json({ error: "Google sign-in is unavailable right now." }, { status: 502 });
       }
@@ -75,6 +78,7 @@ export async function POST(req: Request) {
         authenticatorId: googleAuthenticator.authenticatorId,
         codeVerifier,
         state,
+        redirectUri,
         callbackUrl: safeCallbackUrl(callbackUrl),
       }),
       ...APP_NATIVE_COOKIE_OPTIONS,

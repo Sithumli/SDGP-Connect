@@ -13,6 +13,7 @@ import {
   findBasicAuthenticator,
   describeFlowFailure,
   getFlowErrorMessage,
+  getAppNativeRedirectUri,
   startAuthFlow,
   submitAuthStep,
 } from "@/lib/auth/asgardeo";
@@ -20,6 +21,7 @@ import { completeAppNativeFlow } from "@/lib/auth/appNativeFlow";
 import { createAsgardeoUser, deleteRejectedAsgardeoUser } from "@/lib/auth/asgardeoScim";
 import { DOMAIN_REJECTED_MESSAGE, isAllowedEmail } from "@/lib/auth/emailDomain";
 import { apiErrorResponse } from "@/lib/api-error";
+import { resolveAppOrigin } from "@/lib/auth/appOrigin";
 import { enforceRateLimit, SIGNUP_RATE_LIMIT_RULES } from "@/lib/auth/authRateLimit";
 
 const signupSchema = z.object({
@@ -68,12 +70,13 @@ export async function POST(req: Request) {
 
     const { codeVerifier, codeChallenge } = createPkcePair();
     const state = createState();
+    const redirectUri = getAppNativeRedirectUri(resolveAppOrigin(req));
 
-    const flow = await startAuthFlow(codeChallenge, state);
+    const flow = await startAuthFlow(codeChallenge, state, redirectUri);
     const basicAuthenticator = findBasicAuthenticator(flow);
 
     if (!flow.flowId || !basicAuthenticator) {
-      console.error(`Asgardeo app-native username/password step unavailable: ${describeFlowFailure(flow)}`);
+      console.error(`Asgardeo app-native username/password step unavailable: ${describeFlowFailure(flow, redirectUri)}`);
       return NextResponse.json({ error: "Sign-up is unavailable right now." }, { status: 502 });
     }
 
@@ -95,7 +98,7 @@ export async function POST(req: Request) {
 
     const completion = await completeAppNativeFlow(
       result.authData.code,
-      createFlowToken(codeVerifier, state),
+      createFlowToken(codeVerifier, state, redirectUri),
     );
 
     if (!completion.ok) {
