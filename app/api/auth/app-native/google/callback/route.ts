@@ -13,6 +13,7 @@ import {
   verifySignedBlob,
 } from "@/lib/auth/asgardeo";
 import { completeAppNativeFlow } from "@/lib/auth/appNativeFlow";
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
 import {
   APP_NATIVE_COOKIE_OPTIONS,
   GOOGLE_FLOW_COOKIE,
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
     }
 
     const url = new URL("/login/complete", req.nextUrl.origin);
-    url.searchParams.set("callbackUrl", flowState.callbackUrl);
+    url.searchParams.set("callbackUrl", safeCallbackUrl(flowState.callbackUrl));
 
     const response = NextResponse.redirect(url);
     response.cookies.delete(GOOGLE_FLOW_COOKIE);

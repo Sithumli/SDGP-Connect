@@ -69,8 +69,23 @@ export const createAsgardeoUser = async (
 interface ScimUser {
   id?: string;
   userName?: string;
+  meta?: { created?: string };
   "urn:scim:wso2:schema"?: { lastPasswordUpdateTime?: string; idpType?: string; userSourceId?: string };
 }
+
+/**
+ * Only accounts created inside the current sign-in are cleanup candidates. Without this window a
+ * long-standing account on a non-allowed domain — an Asgardeo Console administrator, say — would be
+ * deleted the first time someone tried to sign into this app with it.
+ */
+const JIT_CLEANUP_WINDOW_MS = 10 * 60 * 1000;
+
+const wasCreatedJustNow = (user: ScimUser): boolean => {
+  const created = user.meta?.created ? Date.parse(user.meta.created) : NaN;
+  if (!Number.isFinite(created)) return false;
+
+  return Date.now() - created <= JIT_CLEANUP_WINDOW_MS;
+};
 
 /**
  * Local sign-ups match on userName; users provisioned from Google get a generated UUID as their
@@ -95,9 +110,6 @@ const findAsgardeoUserByEmail = async (accessToken: string, email: string) => {
 
   return undefined;
 };
-
-const findAsgardeoUserIdByEmail = async (accessToken: string, email: string) =>
-  (await findAsgardeoUserByEmail(accessToken, email))?.id;
 
 /**
  * Epoch millis of the user's last password change, or undefined when unknown. Used to confirm a
@@ -128,7 +140,17 @@ export const deleteRejectedAsgardeoUser = async (email: string, subjectId?: stri
 
   try {
     const accessToken = await getScimAccessToken();
-    const userId = (await findAsgardeoUserIdByEmail(accessToken, email)) ?? subjectId;
+    const user = await findAsgardeoUserByEmail(accessToken, email);
+
+    if (user && !wasCreatedJustNow(user)) {
+      console.warn(
+        `Skipping SCIM2 cleanup for ${email}: the account predates this sign-in, so it was not ` +
+          "provisioned by the rejected attempt.",
+      );
+      return;
+    }
+
+    const userId = user?.id ?? subjectId;
     if (!userId) return;
 
     const response = await fetch(`${getAsgardeoBaseUrl()}/scim2/Users/${userId}`, {

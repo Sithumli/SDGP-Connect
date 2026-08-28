@@ -14,6 +14,7 @@ import {
   RECOVERY_FLOW_COOKIE,
 } from "@/lib/auth/appNativeCookies";
 import { apiErrorResponse } from "@/lib/api-error";
+import { enforceRateLimit, RESET_VERIFY_RATE_LIMIT_RULES } from "@/lib/auth/authRateLimit";
 import type { RecoveryFlowState } from "@/lib/auth/recoveryFlowState";
 
 const verifySchema = z.object({
@@ -23,6 +24,9 @@ const verifySchema = z.object({
 /** Checks the emailed code so the user is only asked for a new password once it is known good. */
 export async function POST(req: NextRequest) {
   try {
+    const limited = await enforceRateLimit(req, RESET_VERIFY_RATE_LIMIT_RULES, "Too many incorrect codes. Please wait before trying again.");
+    if (limited) return limited;
+
     const body = await req.json();
     const validationResult = verifySchema.safeParse(body);
 

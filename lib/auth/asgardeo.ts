@@ -309,15 +309,22 @@ export interface GoogleFlowState {
 
 const SIGNED_BLOB_TTL_MS = 10 * 60 * 1000;
 
+/** A ticket only has to survive one immediate round-trip, so it expires well before a flow blob. */
+export const TICKET_TTL_MS = 2 * 60 * 1000;
+
+/** Recovery spans an email round-trip, so it must outlive the default. */
+export const RECOVERY_TTL_MS = 60 * 60 * 1000;
+
 const signPayload = (payload: string) =>
   base64UrlEncode(
     crypto.createHmac("sha256", getRequiredEnv("NEXTAUTH_SECRET")).update(payload).digest(),
   );
 
-export const createSignedBlob = (data: Record<string, unknown>): string => {
-  const payload = base64UrlEncode(
-    JSON.stringify({ ...data, expiresAt: Date.now() + SIGNED_BLOB_TTL_MS }),
-  );
+export const createSignedBlob = (
+  data: Record<string, unknown>,
+  ttlMs: number = SIGNED_BLOB_TTL_MS,
+): string => {
+  const payload = base64UrlEncode(JSON.stringify({ ...data, expiresAt: Date.now() + ttlMs }));
   return `${payload}.${signPayload(payload)}`;
 };
 
@@ -325,11 +332,12 @@ export const verifySignedBlob = <T extends { expiresAt: number }>(blob: string):
   const [payload, signature] = blob.split(".");
   if (!payload || !signature) return null;
 
-  const expected = signPayload(payload);
-  if (
-    expected.length !== signature.length ||
-    !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
-  ) {
+  // Compare as bytes: a multi-byte signature can match on string length yet differ in byte
+  // length, and timingSafeEqual throws rather than returning false when the buffers differ.
+  const expected = Buffer.from(signPayload(payload));
+  const provided = Buffer.from(signature);
+
+  if (expected.length !== provided.length || !crypto.timingSafeEqual(expected, provided)) {
     return null;
   }
 

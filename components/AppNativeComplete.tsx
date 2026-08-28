@@ -8,6 +8,8 @@ import * as React from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl"
+
 /**
  * Landing page for the Google leg of the app-native flow. The callback route has already exchanged
  * the code and enforced the domain rule; all that is left is to redeem the signed ticket for a
@@ -16,7 +18,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 const AppNativeComplete: React.FC = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard"
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"))
 
   React.useEffect(() => {
     let cancelled = false

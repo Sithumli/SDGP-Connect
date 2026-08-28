@@ -18,13 +18,18 @@ import {
 import { APP_NATIVE_COOKIE_OPTIONS, GOOGLE_FLOW_COOKIE } from "@/lib/auth/appNativeCookies";
 import { ALLOWED_EMAIL_DOMAIN } from "@/lib/auth/emailDomain";
 import { apiErrorResponse } from "@/lib/api-error";
+import { FLOW_START_RATE_LIMIT_RULES, enforceRateLimit } from "@/lib/auth/authRateLimit";
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
 
 const startSchema = z.object({
-  callbackUrl: z.string().startsWith("/").optional(),
+  callbackUrl: z.string().optional(),
 });
 
 export async function POST(req: Request) {
   try {
+    const limited = await enforceRateLimit(req, FLOW_START_RATE_LIMIT_RULES);
+    if (limited) return limited;
+
     const body = await req.json().catch(() => ({}));
     const validationResult = startSchema.safeParse(body);
     const callbackUrl = validationResult.success ? validationResult.data.callbackUrl : undefined;
@@ -70,7 +75,7 @@ export async function POST(req: Request) {
         authenticatorId: googleAuthenticator.authenticatorId,
         codeVerifier,
         state,
-        callbackUrl: callbackUrl ?? "/dashboard",
+        callbackUrl: safeCallbackUrl(callbackUrl),
       }),
       ...APP_NATIVE_COOKIE_OPTIONS,
     });

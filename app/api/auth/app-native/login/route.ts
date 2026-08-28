@@ -19,6 +19,7 @@ import {
 import { completeAppNativeFlow } from "@/lib/auth/appNativeFlow";
 import { DOMAIN_REJECTED_MESSAGE, isAllowedEmail } from "@/lib/auth/emailDomain";
 import { apiErrorResponse } from "@/lib/api-error";
+import { enforceRateLimit, LOGIN_RATE_LIMIT_RULES } from "@/lib/auth/authRateLimit";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -27,6 +28,9 @@ const loginSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const limited = await enforceRateLimit(req, LOGIN_RATE_LIMIT_RULES);
+    if (limited) return limited;
+
     const body = await req.json();
     const validationResult = loginSchema.safeParse(body);
 

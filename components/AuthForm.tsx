@@ -13,6 +13,8 @@ import { toast } from "sonner"
 import Image from "next/image"
 import Link from "next/link"
 
+import { safeCallbackUrl } from "@/lib/auth/callbackUrl"
+
 const ALLOWED_EMAIL_DOMAIN = process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN ?? "iit.ac.lk"
 
 const loginImages = [
@@ -135,7 +137,7 @@ const LoginForm: React.FC = () => {
   const [loading, setLoading] = React.useState(false)
   const [googleLoading, setGoogleLoading] = React.useState(false)
   const callbackUrlFromQuery = searchParams.get("callbackUrl")
-  const dashboardCallbackUrl = callbackUrlFromQuery ?? "/dashboard"
+  const dashboardCallbackUrl = safeCallbackUrl(callbackUrlFromQuery)
   const authError = searchParams.get("error")
 
   React.useEffect(() => {

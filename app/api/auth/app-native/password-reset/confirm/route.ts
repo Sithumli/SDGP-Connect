@@ -10,6 +10,7 @@ import { verifySignedBlob } from "@/lib/auth/asgardeo";
 import { setRecoveredPassword } from "@/lib/auth/asgardeoRecovery";
 import { RECOVERY_FLOW_COOKIE } from "@/lib/auth/appNativeCookies";
 import { apiErrorResponse } from "@/lib/api-error";
+import { RESET_VERIFY_RATE_LIMIT_RULES, enforceRateLimit } from "@/lib/auth/authRateLimit";
 import type { RecoveryFlowState } from "@/lib/auth/recoveryFlowState";
 
 const confirmSchema = z.object({
@@ -19,6 +20,9 @@ const confirmSchema = z.object({
 /** Sets the new password. Only reachable once /verify has put a resetCode in the flow cookie. */
 export async function POST(req: NextRequest) {
   try {
+    const limited = await enforceRateLimit(req, RESET_VERIFY_RATE_LIMIT_RULES);
+    if (limited) return limited;
+
     const body = await req.json();
     const validationResult = confirmSchema.safeParse(body);
 

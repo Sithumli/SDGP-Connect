@@ -20,6 +20,7 @@ import { completeAppNativeFlow } from "@/lib/auth/appNativeFlow";
 import { createAsgardeoUser, deleteRejectedAsgardeoUser } from "@/lib/auth/asgardeoScim";
 import { DOMAIN_REJECTED_MESSAGE, isAllowedEmail } from "@/lib/auth/emailDomain";
 import { apiErrorResponse } from "@/lib/api-error";
+import { enforceRateLimit, SIGNUP_RATE_LIMIT_RULES } from "@/lib/auth/authRateLimit";
 
 const signupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -29,6 +30,9 @@ const signupSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const limited = await enforceRateLimit(req, SIGNUP_RATE_LIMIT_RULES);
+    if (limited) return limited;
+
     const body = await req.json();
     const validationResult = signupSchema.safeParse(body);
 

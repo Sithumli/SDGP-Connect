@@ -4,6 +4,7 @@
 // See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
 
 import {
+  TICKET_TTL_MS,
   createSignedBlob,
   exchangeCodeForTokens,
   resolveClaims,
@@ -75,7 +76,7 @@ export const completeAppNativeFlow = async (
     name,
     image: claims.picture ?? null,
     role: getRoleFromAsgardeoProfile(claims as Record<string, unknown>),
-  });
+  }, TICKET_TTL_MS);
 
   return { ok: true, ticket, email };
 };
