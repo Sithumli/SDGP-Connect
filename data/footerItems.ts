@@ -45,6 +45,7 @@ export const footerItem = {
       title: "Legal",
       links: [
         { label: "Privacy policy", href: "/privacy" },
+        { label: "Terms of service", href: "/terms" },
         { label: "Cookie policy", href: "/cookies" },
       ],
     },

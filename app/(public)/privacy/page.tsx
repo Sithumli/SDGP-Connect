@@ -8,11 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Clock, Cookie, Eye, FileText, Globe, Lock, Mail, Settings, Shield, Users } from 'lucide-react';
+import { AlertTriangle, Clock, Cookie, Eye, FileText, Globe, KeyRound, Lock, Mail, Scale, Settings, Shield, Users } from 'lucide-react';
 import Link from 'next/link';
 
 const PrivacyPolicyPage = () => {
-  const lastUpdated = "June 5, 2025";
+  const lastUpdated = "August 29, 2026";
 
   const sections = [
     {
@@ -33,6 +33,22 @@ const PrivacyPolicyPage = () => {
         "Technical Data: IP address, browser type, device information, and usage patterns",
         "Team Information: Team member details and collaboration preferences",
         "Optional Data: Social media links, academic affiliations, and professional information"
+      ]
+    },
+    {
+      id: "google-sign-in",
+      title: "Google Sign-In and Google User Data",
+      icon: KeyRound,
+      content: `SDGP.LK offers "Continue with Google" as a way to sign in. When you choose it, Google asks for your permission and then shares a limited set of profile information with us. We only request the "openid", "email", and "profile" scopes.`,
+      details: [
+        "What we receive: your email address, your name, your profile picture URL, and a unique Google account identifier",
+        "Why we use it: solely to create and authenticate your SDGP.LK account, to display your name and picture in the platform, and to confirm that your address belongs to the permitted institutional domain",
+        "What we store: your email address, name, and profile picture URL in our own database; your Google password is never shared with us and we never see it",
+        "Access restriction: sign-in is limited to @iit.ac.lk addresses. If your Google account does not use a permitted address, the sign-in is rejected and the account record created during the attempt is deleted",
+        "No advertising or profiling: Google user data is never used for advertising, sold, or transferred to third parties, and is not used to build advertising profiles",
+        "No additional Google services: we do not read your Gmail, Drive, Calendar, Contacts, or any other Google service data",
+        "Revoking access: you can withdraw our access at any time from your Google Account permissions page at myaccount.google.com/permissions",
+        "Deletion: you may request deletion of your SDGP.LK account and the associated Google-derived profile data by contacting support@sdgp.lk"
       ]
     },
     {
@@ -115,6 +131,12 @@ const PrivacyPolicyPage = () => {
         "Technical Logs: Automatically deleted after a reasonable period unless required for security or legal purposes",
         "Inactive Accounts: Data from inactive accounts may be archived or deleted after extended periods of inactivity"
       ]
+    },
+    {
+      id: "terms-of-service",
+      title: "Terms of Service",
+      icon: Scale,
+      content: `Your use of SDGP.LK is also governed by our Terms of Service, which set out the rules for accounts, submissions, acceptable use, and moderation. This Privacy Policy should be read alongside those Terms, available at /terms.`
     },
     {
       id: "policy-changes",
