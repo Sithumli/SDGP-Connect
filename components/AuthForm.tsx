@@ -121,12 +121,14 @@ const inputClassName =
 
 type AuthMode = "signin" | "signup" | "reset"
 type ResetStage = "request" | "verify" | "password"
+type SignupStage = "details" | "verify"
 
 const LoginForm: React.FC = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [mode, setMode] = React.useState<AuthMode>("signin")
   const [resetStage, setResetStage] = React.useState<ResetStage>("request")
+  const [signupStage, setSignupStage] = React.useState<SignupStage>("details")
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -150,6 +152,7 @@ const LoginForm: React.FC = () => {
   const switchMode = (next: AuthMode) => {
     setMode(next)
     setResetStage("request")
+    setSignupStage("details")
     setError("")
     setNotice("")
     setPassword("")
@@ -220,19 +223,52 @@ const LoginForm: React.FC = () => {
     }
   }
 
+  const handleSignup = async () => {
+    if (signupStage === "details") {
+      const { response, data } = await post("/api/auth/app-native/signup", { name, email, password })
+
+      if (!response.ok) {
+        setError(data.error ?? "Sign-up failed. Please try again.")
+      } else {
+        setNotice(data.message ?? "We've emailed you a 6-digit code.")
+        setSignupStage("verify")
+      }
+      return
+    }
+
+    const { response, data } = await post("/api/auth/app-native/signup/verify", { otp, name, password })
+
+    if (!response.ok) {
+      setError(data.error ?? "That code is incorrect. Please try again.")
+      return
+    }
+
+    // The account exists now, so the password entered a moment ago can complete a normal sign-in.
+    // It was never stored server side — it is still in this form's state.
+    const login = await post("/api/auth/app-native/login", { email, password })
+
+    if (!login.response.ok || !login.data.ticket) {
+      toast.success("Email verified. Please sign in.")
+      switchMode("signin")
+      return
+    }
+
+    await redeemTicket(login.data.ticket)
+  }
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setError("")
     setNotice("")
 
     // UX pre-check only — the same rule is enforced again on the server for every attempt.
-    const needsEmailCheck = mode !== "reset" || resetStage === "request"
+    const needsEmailCheck = mode === "signin" || (mode === "signup" && signupStage === "details") || (mode === "reset" && resetStage === "request")
     if (needsEmailCheck && !isAllowedEmail(email)) {
       setError(`Please use your IIT email address (@${ALLOWED_EMAIL_DOMAIN}).`)
       return
     }
 
-    if (mode === "signup" && password !== confirmPassword) {
+    if (mode === "signup" && signupStage === "details" && password !== confirmPassword) {
       setError("Both passwords must match.")
       return
     }
@@ -245,11 +281,13 @@ const LoginForm: React.FC = () => {
         return
       }
 
-      const endpoint = mode === "signup" ? "/api/auth/app-native/signup" : "/api/auth/app-native/login"
-      const { response, data } = await post(
-        endpoint,
-        mode === "signup" ? { name, email, password } : { email, password },
-      )
+      if (mode === "signup") {
+        await handleSignup()
+        setLoading(false)
+        return
+      }
+
+      const { response, data } = await post("/api/auth/app-native/login", { email, password })
 
       if (!response.ok || !data.ticket) {
         setError(data.error ?? "Sign-in failed. Please try again.")
@@ -287,10 +325,16 @@ const LoginForm: React.FC = () => {
   }
 
   const busy = loading || googleLoading
-  const showEmail = mode !== "reset" || resetStage === "request"
-  const showPassword = mode === "signin" || mode === "signup" || (mode === "reset" && resetStage === "password")
-  const showConfirmPassword = mode === "signup" || (mode === "reset" && resetStage === "password")
-  const showGoogle = mode !== "reset"
+  const signupVerifying = mode === "signup" && signupStage === "verify"
+  const showEmail = (mode !== "reset" || resetStage === "request") && !signupVerifying
+  const showPassword =
+    mode === "signin" ||
+    (mode === "signup" && signupStage === "details") ||
+    (mode === "reset" && resetStage === "password")
+  const showConfirmPassword =
+    (mode === "signup" && signupStage === "details") || (mode === "reset" && resetStage === "password")
+  const showOtp = signupVerifying || (mode === "reset" && resetStage === "verify")
+  const showGoogle = mode === "signin" || (mode === "signup" && signupStage === "details")
 
   const heading = {
     signin: <>Welcome<br /><span className="text-zinc-500">back.</span></>,
@@ -300,7 +344,9 @@ const LoginForm: React.FC = () => {
 
   const subheading =
     mode === "signup"
-      ? `Sign up with your @${ALLOWED_EMAIL_DOMAIN} email to get started`
+      ? signupStage === "verify"
+        ? "Enter the 6-digit code we emailed you"
+        : `Sign up with your @${ALLOWED_EMAIL_DOMAIN} email to get started`
       : mode === "signin"
         ? "Sign in to your account to continue"
         : resetStage === "request"
@@ -311,13 +357,13 @@ const LoginForm: React.FC = () => {
 
   const submitLabel = {
     signin: "Sign in",
-    signup: "Create account",
+    signup: signupStage === "verify" ? "Verify and continue" : "Create account",
     reset: { request: "Email me a code", verify: "Verify code", password: "Reset password" }[resetStage],
   }[mode]
 
   const busyLabel = {
     signin: "Signing in...",
-    signup: "Creating account...",
+    signup: signupStage === "verify" ? "Verifying..." : "Creating account...",
     reset: { request: "Sending code...", verify: "Verifying...", password: "Resetting..." }[resetStage],
   }[mode]
 
@@ -349,7 +395,7 @@ const LoginForm: React.FC = () => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {mode === "signup" && (
+        {mode === "signup" && signupStage === "details" && (
           <input
             type="text"
             value={name}
@@ -374,7 +420,7 @@ const LoginForm: React.FC = () => {
           />
         )}
 
-        {mode === "reset" && resetStage === "verify" && (
+        {showOtp && (
           <input
             type="text"
             value={otp}

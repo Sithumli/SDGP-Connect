@@ -6,29 +6,31 @@
 import { NextResponse } from "next/server";
 import * as z from "zod";
 
-import {
-  createFlowToken,
-  createPkcePair,
-  createState,
-  findBasicAuthenticator,
-  describeFlowFailure,
-  getFlowErrorMessage,
-  getAppNativeRedirectUri,
-  startAuthFlow,
-  submitAuthStep,
-} from "@/lib/auth/asgardeo";
-import { completeAppNativeFlow } from "@/lib/auth/appNativeFlow";
-import { createAsgardeoUser, deleteRejectedAsgardeoUser } from "@/lib/auth/asgardeoScim";
+import { createSignedBlob } from "@/lib/auth/asgardeo";
+import { asgardeoAccountExists } from "@/lib/auth/asgardeoScim";
+import { APP_NATIVE_COOKIE_OPTIONS } from "@/lib/auth/appNativeCookies";
 import { DOMAIN_REJECTED_MESSAGE, isAllowedEmail } from "@/lib/auth/emailDomain";
+import {
+  SIGNUP_VERIFICATION_COOKIE,
+  SIGNUP_VERIFICATION_TTL_MS,
+  createVerificationCode,
+  hashVerificationCode,
+} from "@/lib/auth/signupVerification";
+import { sendEmail } from "@/lib/email";
+import { verificationEmailTemplate } from "@/lib/email/templates/verification";
 import { apiErrorResponse } from "@/lib/api-error";
-import { resolveAppOrigin } from "@/lib/auth/appOrigin";
-import { enforceRateLimit, SIGNUP_RATE_LIMIT_RULES } from "@/lib/auth/authRateLimit";
+import { SIGNUP_RATE_LIMIT_RULES, enforceRateLimit } from "@/lib/auth/authRateLimit";
 
 const signupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
+
+const VERIFICATION_SENT = {
+  verificationRequired: true,
+  message: "We've emailed you a 6-digit code. Enter it to finish creating your account.",
+};
 
 export async function POST(req: Request) {
   try {
@@ -45,74 +47,43 @@ export async function POST(req: Request) {
       );
     }
 
-    const { name, email, password } = validationResult.data;
+    const { name, email } = validationResult.data;
 
     if (!isAllowedEmail(email)) {
       return NextResponse.json({ error: DOMAIN_REJECTED_MESSAGE }, { status: 403 });
     }
 
-    const [givenName, ...rest] = name.trim().split(/\s+/);
-    const created = await createAsgardeoUser(email, password, givenName, rest.join(" ") || givenName);
-
-    if (!created.ok) {
-      if (created.status === 409) {
-        return NextResponse.json(
-          { error: "An account with this email already exists. Please sign in instead." },
-          { status: 409 },
-        );
-      }
-
+    if (await asgardeoAccountExists(email)) {
       return NextResponse.json(
-        { error: created.message ?? "Could not create your account. Please try again." },
-        { status: 400 },
+        { error: "An account with this email already exists. Please sign in instead." },
+        { status: 409 },
       );
     }
 
-    const { codeVerifier, codeChallenge } = createPkcePair();
-    const state = createState();
-    const redirectUri = getAppNativeRedirectUri(resolveAppOrigin(req));
+    // Nothing is created yet. Creating an account here — even a locked one — would let anyone
+    // squat on a colleague's address and lock them out of the platform until an admin intervened.
+    // The account is created in the verify step, once the code proves control of the mailbox.
+    const otp = createVerificationCode();
 
-    const flow = await startAuthFlow(codeChallenge, state, redirectUri);
-    const basicAuthenticator = findBasicAuthenticator(flow);
-
-    if (!flow.flowId || !basicAuthenticator) {
-      console.error(`Asgardeo app-native username/password step unavailable: ${describeFlowFailure(flow, redirectUri)}`);
-      return NextResponse.json({ error: "Sign-up is unavailable right now." }, { status: 502 });
-    }
-
-    const result = await submitAuthStep(flow.flowId, basicAuthenticator.authenticatorId, {
-      username: email,
-      password,
+    await sendEmail({
+      to: email,
+      subject: "Confirm your SDGP.lk email address",
+      html: verificationEmailTemplate(name, otp),
     });
 
-    if (result.flowStatus !== "SUCCESS_COMPLETED" || !result.authData?.code) {
-      return NextResponse.json(
-        {
-          error:
-            getFlowErrorMessage(result) ??
-            "Your account was created but we could not sign you in. Please try signing in.",
-        },
-        { status: 401 },
-      );
-    }
+    const response = NextResponse.json(VERIFICATION_SENT);
 
-    const completion = await completeAppNativeFlow(
-      result.authData.code,
-      createFlowToken(codeVerifier, state, redirectUri),
-    );
+    response.cookies.set({
+      name: SIGNUP_VERIFICATION_COOKIE,
+      value: createSignedBlob(
+        { email: email.trim().toLowerCase(), otpHash: hashVerificationCode(email, otp) },
+        SIGNUP_VERIFICATION_TTL_MS,
+      ),
+      ...APP_NATIVE_COOKIE_OPTIONS,
+      maxAge: SIGNUP_VERIFICATION_TTL_MS / 1000,
+    });
 
-    if (!completion.ok) {
-      // completeAppNativeFlow only cleans up when it can read the email claim; the account we just
-      // created is ours either way, so make sure it does not survive a rejected sign-up.
-      if (completion.reason === "DOMAIN_NOT_ALLOWED") await deleteRejectedAsgardeoUser(email, created.id);
-
-      return NextResponse.json(
-        { error: completion.message },
-        { status: completion.reason === "DOMAIN_NOT_ALLOWED" ? 403 : 401 },
-      );
-    }
-
-    return NextResponse.json({ ticket: completion.ticket });
+    return response;
   } catch (error) {
     return apiErrorResponse("Error during app-native signup", error, "Sign-up failed. Please try again.");
   }

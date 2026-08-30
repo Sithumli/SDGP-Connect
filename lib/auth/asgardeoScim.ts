@@ -70,7 +70,12 @@ interface ScimUser {
   id?: string;
   userName?: string;
   meta?: { created?: string };
-  "urn:scim:wso2:schema"?: { lastPasswordUpdateTime?: string; idpType?: string; userSourceId?: string };
+  "urn:scim:wso2:schema"?: {
+    lastPasswordUpdateTime?: string;
+    idpType?: string;
+    userSourceId?: string;
+    accountLocked?: string;
+  };
 }
 
 /**
@@ -204,4 +209,10 @@ export const updateAsgardeoUserName = async (email: string, name: string) => {
   } catch (error) {
     console.error("Asgardeo name sync failed:", error);
   }
+};
+
+/** Whether any account already uses this address, under either userName shape. */
+export const asgardeoAccountExists = async (email: string): Promise<boolean> => {
+  const accessToken = await getM2MAccessToken(SCIM_SCOPES);
+  return Boolean(await findAsgardeoUserByEmail(accessToken, email));
 };
