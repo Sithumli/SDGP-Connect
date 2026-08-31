@@ -108,6 +108,16 @@ export const requestPasswordRecovery = async (email: string): Promise<RecoveryIn
   return flowConfirmationCode ? { flowConfirmationCode } : null;
 };
 
+/** Asgardeo's policy strings are machine-generated: "at least 1 lower case characters". */
+const normalizePolicyMessage = (description: string) => {
+  const cleaned = description
+    .trim()
+    .replace(/\b1 ([a-z ]+?)s\b/gi, "1 $1")
+    .replace(/\s+/g, " ");
+
+  return cleaned.endsWith(".") ? cleaned : `${cleaned}.`;
+};
+
 export type ConfirmCodeResult =
   | { ok: true; resetCode: string }
   | { ok: false; message: string };
@@ -163,9 +173,13 @@ export const setRecoveredPassword = async (
 
   const { code, description } = reset.payload as { code?: string; description?: string };
 
-  // Asgardeo enforces the org's own password policy and reports violations as a 400.
-  if (reset.status === 400 && description) {
-    return { ok: false, reason: "WEAK_PASSWORD", message: description };
+  // Asgardeo reports a password-policy violation as 400 or 412 (PWR-10006), and its description is
+  // the only place the actual rule appears — e.g. "The password should contain at least 1 lower
+  // case characters." Passing it through beats telling someone their code was wrong when it wasn't.
+  const isPolicyFailure = reset.status === 400 || reset.status === 412 || code === "PWR-10006";
+
+  if (isPolicyFailure && description) {
+    return { ok: false, reason: "WEAK_PASSWORD", message: normalizePolicyMessage(description) };
   }
 
   console.error("Asgardeo password reset failed:", reset.status, reset.payload);

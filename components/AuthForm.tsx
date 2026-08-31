@@ -34,26 +34,26 @@ const AuthForm: React.FC = () => {
         className="relative z-10 w-full max-w-4xl px-4 sm:px-0"
       >
         {/* Split card container */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 rounded-2xl border border-zinc-800 overflow-hidden shadow-[0_24px_80px_-12px_rgba(0,0,0,0.7)]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 rounded-2xl border border-zinc-800 overflow-hidden shadow-[0_24px_80px_-12px_rgba(0,0,0,0.7)] sm:h-[min(620px,calc(100vh-4rem))]">
           {/* LEFT PANEL: Form */}
-          <div className="bg-zinc-900 px-10 py-12 flex flex-col justify-between min-h-[520px]">
+          <div className="flex min-h-0 flex-col bg-zinc-900 px-10 py-8">
             {/* Logo */}
             <motion.div
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5 }}
-              className="flex items-center gap-3"
+              className="flex shrink-0 items-center gap-3"
             >
               <Image src="/iconw.svg" alt="Logo" width={40} height={40} className="h-25 w-25" />
             </motion.div>
 
-            {/* Heading + form */}
-            <div className="flex flex-col gap-8">
+            {/* Heading + form. Scrolls on its own so sign-up does not make the card taller than sign-in. */}
+            <div className="-mx-1 flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-1 py-6">
               <LoginForm />
             </div>
 
             {/* Footer */}
-            <p className="text-xs text-zinc-600">© 2026 SDGP.lk · All rights reserved</p>
+            <p className="shrink-0 text-xs text-zinc-600">© 2026 SDGP.lk · All rights reserved</p>
           </div>
 
           {/* RIGHT PANEL: Visual */}
@@ -115,7 +115,7 @@ const isAllowedEmail = (email: string) => {
 }
 
 const inputClassName =
-  "w-full rounded-xl border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-sm text-zinc-100 " +
+  "w-full rounded-xl border border-zinc-700 bg-zinc-800/60 px-4 py-2.5 text-sm text-zinc-100 " +
   "placeholder:text-zinc-600 transition-colors duration-200 focus:border-zinc-500 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
 
@@ -368,10 +368,10 @@ const LoginForm: React.FC = () => {
   }[mode]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-4xl font-bold text-white tracking-tight leading-tight">{heading}</h1>
-        <p className="mt-3 text-sm text-zinc-400">{subheading}</p>
+        <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">{heading}</h1>
+        <p className="mt-2 text-sm text-zinc-400">{subheading}</p>
       </div>
 
       {error && (
@@ -394,7 +394,7 @@ const LoginForm: React.FC = () => {
         </motion.div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {mode === "signup" && signupStage === "details" && (
           <input
             type="text"
@@ -459,6 +459,12 @@ const LoginForm: React.FC = () => {
           />
         )}
 
+        {showPassword && mode !== "signin" && (
+          <p className="text-xs text-zinc-600">
+            At least 8 characters, including upper and lower case letters, a number and a symbol.
+          </p>
+        )}
+
         {showConfirmPassword && (
           <input
             type="password"
@@ -487,7 +493,7 @@ const LoginForm: React.FC = () => {
         <button
           type="submit"
           disabled={busy}
-          className="flex w-full items-center justify-center gap-3 rounded-xl bg-zinc-100 px-5 py-3.5
+          className="flex w-full items-center justify-center gap-3 rounded-xl bg-zinc-100 px-5 py-3
             text-sm font-medium text-zinc-900
             transition-all duration-200 hover:bg-white
             active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed
@@ -517,7 +523,7 @@ const LoginForm: React.FC = () => {
             onClick={handleGoogleSignIn}
             disabled={busy}
             className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-700
-              bg-zinc-800 px-5 py-3.5 text-sm font-medium text-zinc-200
+              bg-zinc-800 px-5 py-3 text-sm font-medium text-zinc-200
               transition-all duration-200 hover:bg-zinc-700 hover:border-zinc-600
               active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
