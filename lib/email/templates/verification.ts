@@ -17,6 +17,9 @@ export function verificationEmailTemplate(name: string, code: string) {
       <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#71717a">
         This code expires in 15 minutes. Your account stays locked until it is confirmed.
       </p>
+      <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#71717a">
+        If this landed in your spam folder, please mark it as "Not spam" so future codes reach you.
+      </p>
       <p style="margin:0;font-size:13px;line-height:1.6;color:#71717a">
         If you did not try to sign up for SDGP.lk, you can ignore this email.
       </p>

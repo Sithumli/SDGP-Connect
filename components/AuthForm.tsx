@@ -5,7 +5,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, Info } from "lucide-react"
 import { motion } from "framer-motion"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -433,6 +433,17 @@ const LoginForm: React.FC = () => {
             required
             className={`${inputClassName} text-center tracking-[0.5em] font-mono text-lg`}
           />
+        )}
+
+        {showOtp && (
+          <div className="flex items-start gap-2 rounded-xl border border-zinc-800 bg-zinc-800/30 p-3">
+            <Info className="mt-0.5 size-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+            <p className="text-xs leading-relaxed text-zinc-500">
+              The code comes from <span className="text-zinc-300">SDGP.LK</span>. If it is not in your
+              inbox, check your spam or junk folder and mark it as{" "}
+              <span className="text-zinc-300">Not spam</span> so future codes arrive normally.
+            </p>
+          </div>
         )}
 
         {showPassword && (
