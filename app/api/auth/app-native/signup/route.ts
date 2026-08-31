@@ -69,6 +69,7 @@ export async function POST(req: Request) {
       to: email,
       subject: "Confirm your SDGP.lk email address",
       html: verificationEmailTemplate(name, otp),
+      transport: "otp",
     });
 
     const response = NextResponse.json(VERIFICATION_SENT);
