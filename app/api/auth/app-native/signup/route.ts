@@ -19,7 +19,7 @@ import {
 import { sendEmail } from "@/lib/email";
 import { verificationEmailTemplate } from "@/lib/email/templates/verification";
 import { apiErrorResponse } from "@/lib/api-error";
-import { SIGNUP_RATE_LIMIT_RULES, enforceRateLimit } from "@/lib/auth/authRateLimit";
+import { SIGNUP_RATE_LIMIT_RULES, enforceRateLimit, enforceSameOrigin } from "@/lib/auth/authRateLimit";
 
 const signupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -34,6 +34,9 @@ const VERIFICATION_SENT = {
 
 export async function POST(req: Request) {
   try {
+    const crossOrigin = enforceSameOrigin(req);
+    if (crossOrigin) return crossOrigin;
+
     const limited = await enforceRateLimit(req, SIGNUP_RATE_LIMIT_RULES);
     if (limited) return limited;
 

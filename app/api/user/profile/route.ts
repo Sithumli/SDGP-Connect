@@ -11,6 +11,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/prisma/prismaClient";
 import { updateAsgardeoUserName } from "@/lib/auth/asgardeoScim";
 import { apiErrorResponse } from "@/lib/api-error";
+import { enforceSameOrigin } from "@/lib/auth/authRateLimit";
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
@@ -41,6 +42,9 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
+    const crossOrigin = enforceSameOrigin(req);
+    if (crossOrigin) return crossOrigin;
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });

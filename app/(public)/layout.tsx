@@ -63,15 +63,6 @@ export default function RootLayout({
           as="image"
           type="image/svg+xml"
         />
-        <link
-          rel="preload"
-          href="https://fonts.googleapis.com/css2?family=Geist:wght@400;700&display=swap"
-          as="style"
-        />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Geist:wght@400;700&display=swap"
-        />
         {/* temporarily removing third-party AI chatbot
         <script
           defer

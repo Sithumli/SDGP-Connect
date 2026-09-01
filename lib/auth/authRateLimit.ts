@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 
 import { checkRateLimit, type RateLimitRule } from "@/lib/rateLimit";
+import { ALLOWED_APP_ORIGINS, getRequestOrigin } from "@/lib/auth/appOrigin";
 
 export const getClientIp = (req: Request): string => {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -59,4 +60,25 @@ export const enforceRateLimit = async (
     { error: message },
     { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } },
   );
+};
+
+/**
+ * Rejects state-changing requests that did not come from one of our own pages.
+ *
+ * These endpoints take JSON, so a browser already preflights them cross-origin and a classic form
+ * post cannot reach them. Checking Origin explicitly closes the gap for clients that send one
+ * anyway, and answers the scanner's login-form CSRF finding without a token round-trip.
+ *
+ * A missing Origin header is allowed: non-browser callers omit it, and browsers always send one on
+ * the cross-site requests this is guarding against.
+ */
+export const enforceSameOrigin = (req: Request): NextResponse | null => {
+  const origin = req.headers.get("origin");
+  if (!origin) return null;
+
+  const normalized = origin.trim().replace(/\/+$/, "");
+  if (normalized === getRequestOrigin(req) || ALLOWED_APP_ORIGINS.includes(normalized)) return null;
+
+  console.warn(`Blocked cross-origin request from "${normalized}" to ${new URL(req.url).pathname}`);
+  return NextResponse.json({ error: "Request blocked." }, { status: 403 });
 };

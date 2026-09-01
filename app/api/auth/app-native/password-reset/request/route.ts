@@ -15,7 +15,7 @@ import {
 } from "@/lib/auth/appNativeCookies";
 import { DOMAIN_REJECTED_MESSAGE, isAllowedEmail } from "@/lib/auth/emailDomain";
 import { apiErrorResponse } from "@/lib/api-error";
-import { enforceRateLimit, RESET_REQUEST_RATE_LIMIT_RULES } from "@/lib/auth/authRateLimit";
+import { enforceRateLimit, enforceSameOrigin, RESET_REQUEST_RATE_LIMIT_RULES } from "@/lib/auth/authRateLimit";
 
 const requestSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -23,6 +23,9 @@ const requestSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const crossOrigin = enforceSameOrigin(req);
+    if (crossOrigin) return crossOrigin;
+
     const limited = await enforceRateLimit(req, RESET_REQUEST_RATE_LIMIT_RULES);
     if (limited) return limited;
 

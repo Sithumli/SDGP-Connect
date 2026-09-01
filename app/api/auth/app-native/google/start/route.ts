@@ -20,7 +20,7 @@ import { APP_NATIVE_COOKIE_OPTIONS, GOOGLE_FLOW_COOKIE } from "@/lib/auth/appNat
 import { ALLOWED_EMAIL_DOMAIN } from "@/lib/auth/emailDomain";
 import { apiErrorResponse } from "@/lib/api-error";
 import { resolveAppOrigin } from "@/lib/auth/appOrigin";
-import { FLOW_START_RATE_LIMIT_RULES, enforceRateLimit } from "@/lib/auth/authRateLimit";
+import { FLOW_START_RATE_LIMIT_RULES, enforceRateLimit, enforceSameOrigin } from "@/lib/auth/authRateLimit";
 import { safeCallbackUrl } from "@/lib/auth/callbackUrl";
 
 const startSchema = z.object({
@@ -29,6 +29,9 @@ const startSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const crossOrigin = enforceSameOrigin(req);
+    if (crossOrigin) return crossOrigin;
+
     const limited = await enforceRateLimit(req, FLOW_START_RATE_LIMIT_RULES);
     if (limited) return limited;
 

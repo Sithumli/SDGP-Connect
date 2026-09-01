@@ -15,7 +15,7 @@ import {
   verificationCodeMatches,
 } from "@/lib/auth/signupVerification";
 import { apiErrorResponse } from "@/lib/api-error";
-import { RESET_VERIFY_RATE_LIMIT_RULES, enforceRateLimit } from "@/lib/auth/authRateLimit";
+import { RESET_VERIFY_RATE_LIMIT_RULES, enforceRateLimit, enforceSameOrigin } from "@/lib/auth/authRateLimit";
 
 const verifySchema = z.object({
   otp: z.string().regex(/^\d{6}$/, "Enter the 6-digit code from your email"),
@@ -26,6 +26,9 @@ const verifySchema = z.object({
 /** Confirms the emailed code, then creates the account it belongs to. */
 export async function POST(req: NextRequest) {
   try {
+    const crossOrigin = enforceSameOrigin(req);
+    if (crossOrigin) return crossOrigin;
+
     const limited = await enforceRateLimit(
       req,
       RESET_VERIFY_RATE_LIMIT_RULES,

@@ -2,6 +2,7 @@ import { prisma } from '@/prisma/prismaClient';
 import { projectSubmissionSchema } from '@/validations/submit_project';
 import { AssociationType, ProjectApprovalStatus, Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { applyCors } from '@/lib/cors';
 import { NextResponse } from 'next/server';
 import { getModuleFromYear } from '@/lib/utils/module';
 import { getServerSession } from 'next-auth/next';
@@ -50,14 +51,11 @@ function normalizeAndValidateWebsiteUrl(input: string) {
 }
 
 // Handle OPTIONS requests for CORS preflight
-export async function OPTIONS() {
+export async function OPTIONS(req: Request) {
   const response = NextResponse.json({});
 
   // Set CORS headers
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  response.headers.set('Access-Control-Max-Age', '86400');  // Cache the CORS preflight response for 24 hours
+  applyCors(response, req);
 
   // Return a 200 status for OPTIONS
   return response;
@@ -71,10 +69,7 @@ export async function POST(request: Request) {
         { success: false, message: 'Unauthorized', code: 'UNAUTHORIZED' },
         { status: 401 }
       );
-      res.headers.set('Access-Control-Allow-Origin', '*');
-      res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.headers.set('Access-Control-Max-Age', '86400');
+      applyCors(res, request);
       return res;
     }
 
@@ -85,10 +80,7 @@ export async function POST(request: Request) {
         { success: false, message: 'Unauthorized', code: 'UNAUTHORIZED' },
         { status: 401 }
       );
-      res.headers.set('Access-Control-Allow-Origin', '*');
-      res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.headers.set('Access-Control-Max-Age', '86400');
+      applyCors(res, request);
       return res;
     }
 
@@ -97,10 +89,7 @@ export async function POST(request: Request) {
         { success: false, message: 'Forbidden', code: 'FORBIDDEN' },
         { status: 403 }
       );
-      res.headers.set('Access-Control-Allow-Origin', '*');
-      res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.headers.set('Access-Control-Max-Age', '86400');
+      applyCors(res, request);
       return res;
     }
 
@@ -166,10 +155,7 @@ export async function POST(request: Request) {
         },
         { status: 409 }
       );
-      res.headers.set('Access-Control-Allow-Origin', '*');
-      res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.headers.set('Access-Control-Max-Age', '86400');
+      applyCors(res, request);
       return res;
     }
 
@@ -353,10 +339,7 @@ export async function POST(request: Request) {
     });
 
     // Set the CORS headers for both success response and preflight response
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    response.headers.set('Access-Control-Max-Age', '86400');  // Cache the CORS preflight response for 24 hours
+    applyCors(response, request);
 
     return response;
 
@@ -423,10 +406,7 @@ export async function POST(request: Request) {
     }, { status: 500 });
 
     // Set the CORS headers for the error response as well
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    response.headers.set('Access-Control-Max-Age', '86400');
+    applyCors(response, request);
 
     return response;
   }
