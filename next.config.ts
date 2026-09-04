@@ -3,6 +3,7 @@
 // with an additional restriction: Non-commercial use only.
 // See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
 import type { NextConfig } from "next";
+import { SECURITY_HEADER_ENTRIES } from "./lib/securityHeaders";
 
 // Public object URLs are served from https://<bucket>.s3.<region>.amazonaws.com/<key>
 const s3Bucket = process.env.AWS_S3_BUCKET_NAME;
@@ -96,60 +97,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Trailing-slash redirects are issued by middleware instead, so they carry security headers.
+  skipTrailingSlashRedirect: true,
   async headers() {
-    const isDev = process.env.NODE_ENV !== 'production';
-
-    // Local dev servers must not appear in the production policy.
-    const devOrigins = isDev ? ' http://localhost:3001 ws://localhost:3001' : '';
-
-    const csp = [
-      "default-src 'self'",
-      "img-src 'self' data: blob: https:",
-      // 'unsafe-inline'/'unsafe-eval' are still required by the Next.js runtime; removing them
-      // needs per-request nonces, which is a larger change than this pass.
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://api.psycodelabs.lk https://*.psycodelabs.lk${isDev ? ' http://localhost:3001' : ''}`,
-      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.psycodelabs.lk${isDev ? ' http://localhost:3001' : ''}`,
-      "font-src 'self' data: https://fonts.gstatic.com",
-      `connect-src 'self' https://api.psycodelabs.lk https://*.psycodelabs.lk wss://api.psycodelabs.lk wss://*.psycodelabs.lk${devOrigins}`,
-      "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://vimeo.com https://api.psycodelabs.lk https://*.psycodelabs.lk",
-      "worker-src 'self' blob:",
-      // Directives the scan flagged as absent: without these the policy is considered permissive.
-      "frame-ancestors 'none'",
-      "form-action 'self'",
-      "base-uri 'self'",
-      "object-src 'none'",
-      'upgrade-insecure-requests',
-      'report-uri /api/security/csp-report',
-      'report-to csp-endpoint',
-    ].join('; ');
-
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          { key: 'Content-Security-Policy', value: csp },
-          // Pairs with the CSP 'report-to' directive above.
-          {
-            key: 'Reporting-Endpoints',
-            value: 'csp-endpoint="/api/security/csp-report"',
-          },
-          // 2 years, subdomains included, preload eligible.
-          {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload',
-          },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          {
-            key: 'Permissions-Policy',
-            value: 'geolocation=(), microphone=(), camera=(), interest-cohort=()',
-          },
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-DNS-Prefetch-Control', value: 'off' },
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-        ],
-      },
-    ];
+    return [{ source: '/(.*)', headers: SECURITY_HEADER_ENTRIES }];
   },
 };
 
